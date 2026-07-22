@@ -15,6 +15,15 @@ const loginSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
 });
 
+export const getLoginOptions = asyncHandler(async (_req: Request, res: Response) => {
+  const users = await User.findAll({
+    where: { active: true },
+    attributes: ['id', 'name', 'role'],
+    order: [['name', 'ASC']],
+  });
+  res.json(users);
+});
+
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { nameId, pin } = loginSchema.parse(req.body);
 
