@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+.vscode/
+*.tsbuildinfo
+
+# Docker volumes data (if bind-mounted locally)
+docker-data/
