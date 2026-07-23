@@ -49,11 +49,6 @@ export const env = {
     password: process.env.REDIS_PASSWORD || undefined,
   },
 
-  // console web do MinIO, so acessivel dentro da rede interna do compose -
-  // proxied pelo backend (ver app.ts) pra nunca precisar expor a porta 9001
-  // pra internet
-  minioConsoleUrl: process.env.MINIO_CONSOLE_URL ?? 'http://minio:9001',
-
   s3: {
     // endpoint que o BACKEND usa pra falar com o MinIO (upload e demais
     // operacoes internas) - pode ser o hostname interno do compose (rapido,

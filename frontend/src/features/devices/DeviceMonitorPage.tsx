@@ -15,26 +15,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { fetchAppSettings, fetchDeviceMonitor, fetchMinioConsoleToken, updateAppSettings } from './api';
+import { fetchAppSettings, fetchDeviceMonitor, updateAppSettings } from './api';
 import { updateUserDevice } from '@/features/users/api';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
-
 export function DeviceMonitorPage() {
   const queryClient = useQueryClient();
-  const [showMinioConsole, setShowMinioConsole] = useState(false);
   const { data: devices, isLoading } = useQuery({ queryKey: ['admin', 'devices'], queryFn: fetchDeviceMonitor });
-  // token de vida curta (5min), com escopo so pra essa rota - buscado na hora
-  // de abrir o console, nao reaproveita o access token normal na URL do
-  // iframe (ver settings.controller.ts/getMinioConsoleToken)
-  const { data: minioConsoleToken } = useQuery({
-    queryKey: ['admin', 'minio-console-token'],
-    queryFn: fetchMinioConsoleToken,
-    enabled: showMinioConsole,
-    staleTime: 4 * 60 * 1000,
-  });
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['admin', 'settings'],
     queryFn: fetchAppSettings,
@@ -174,22 +162,29 @@ export function DeviceMonitorPage() {
           Armazenamento de fotos (MinIO)
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          O console de administração do MinIO não fica exposto direto na internet — esta tela abre um acesso
-          interno via o próprio backend. No primeiro acesso é preciso logar manualmente no console.
+          O console de administração do MinIO não fica exposto na internet, nem para o painel — ele só escuta em{' '}
+          <code>127.0.0.1:9001</code> no próprio servidor. Para acessá-lo, abra um túnel SSH a partir da sua máquina:
         </Typography>
-        {!showMinioConsole ? (
-          <Button variant="outlined" onClick={() => setShowMinioConsole(true)}>
-            Abrir console do MinIO
-          </Button>
-        ) : !minioConsoleToken ? (
-          <LoadingState />
-        ) : (
-          <Box
-            component="iframe"
-            src={`${API_URL}/admin/minio-console/?token=${minioConsoleToken}`}
-            sx={{ width: '100%', height: 600, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
-          />
-        )}
+        <Box
+          component="pre"
+          sx={{
+            bgcolor: 'action.hover',
+            p: 1.5,
+            borderRadius: 1,
+            fontSize: 13,
+            overflowX: 'auto',
+            mb: 1,
+          }}
+        >
+          ssh -L 9001:localhost:9001 usuario@servidor
+        </Box>
+        <Typography variant="body2" color="text.secondary">
+          Com o túnel aberto, acesse{' '}
+          <Link href="http://localhost:9001" target="_blank" rel="noopener">
+            http://localhost:9001
+          </Link>{' '}
+          no navegador.
+        </Typography>
       </Paper>
 
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>

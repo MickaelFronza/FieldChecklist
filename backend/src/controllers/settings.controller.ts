@@ -2,8 +2,6 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AppSettings } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
-import { ApiError } from '../utils/apiError';
-import { signScopedToken } from '../services/auth.service';
 
 const SETTINGS_ID = 1;
 
@@ -54,12 +52,4 @@ export const getShiftWindows = asyncHandler(async (_req: Request, res: Response)
     afternoonStartHour: settings.afternoonStartHour,
     nightStartHour: settings.nightStartHour,
   });
-});
-
-// token de 5min, escopo "minio-console", pro frontend usar na URL do iframe
-// do console do MinIO em vez do access token normal (ver middlewares/auth.ts)
-export const getMinioConsoleToken = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user) throw new ApiError(401, 'Token de acesso ausente');
-  const token = signScopedToken({ sub: req.user.sub, role: req.user.role }, 'minio-console', '5m');
-  res.json({ token });
 });

@@ -1,13 +1,9 @@
 import express, { Express } from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import { env } from './config/env';
 import { apiV1Router } from './routes';
-import { authenticateFromQueryOrHeader, authorize } from './middlewares/auth';
-import { verifyAccessToken } from './services/auth.service';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 
 export function createApp(): Express {
@@ -20,56 +16,8 @@ export function createApp(): Express {
   // pra ambientes com mais de um proxy na frente (ex.: Cloudflare + Traefik).
   app.set('trust proxy', env.trustProxyHops);
 
-  app.use(cors({ origin: env.corsOrigin }));
-  app.use(cookieParser());
-
-  // proxy do console web do MinIO (admin-only) - montado ANTES do helmet() E
-  // do express.json(). Antes do express.json() pra nao consumir o body da
-  // requisicao antes de repassar pro MinIO (senao um login no console, por
-  // exemplo, nunca chegaria com o corpo original). Antes do helmet() porque
-  // o helmet aplica X-Frame-Options: SAMEORIGIN (+ frame-ancestors no CSP)
-  // em toda resposta por padrao - removendo so o header que o MinIO manda
-  // (DENY) nao bastava, o do helmet ainda ficava por cima; a rota inteira
-  // fica fora do alcance do helmet (o proprio console do MinIO ja manda seu
-  // proprio conjunto de headers de seguranca nas respostas dele).
-  //
-  // A porta 9001 do MinIO nunca fica exposta pra internet - so acessivel via
-  // essa rota, atras de autenticacao de admin. Usa authenticateFromQueryOrHeader
-  // (nao o authenticate padrao) porque isso e carregado num <iframe src="...">,
-  // e o navegador nao permite anexar um header Authorization numa navegacao
-  // de iframe. So a navegacao inicial carrega ?token= - as chamadas seguintes
-  // que o proprio console do MinIO faz (JS/CSS/API dele) nao tem como
-  // carregar esse query param, entao a authenticateFromQueryOrHeader tambem
-  // grava um cookie de curta duracao na 1a resposta valida, e essas chamadas
-  // seguintes se autenticam por ele.
-  app.use(
-    '/api/v1/admin/minio-console',
-    authenticateFromQueryOrHeader('minio-console'),
-    authorize('admin'),
-    createProxyMiddleware({
-      target: env.minioConsoleUrl,
-      changeOrigin: true,
-      ws: true,
-      pathRewrite: { '^/api/v1/admin/minio-console': '' },
-      on: {
-        proxyRes: (proxyRes) => {
-          // o console do MinIO tambem manda "X-Frame-Options: DENY" por
-          // padrao (ele nao espera ser embutido em iframe nenhum) - some com
-          // isso tambem, pro mesmo fim
-          delete proxyRes.headers['x-frame-options'];
-          const csp = proxyRes.headers['content-security-policy'];
-          if (typeof csp === 'string') {
-            proxyRes.headers['content-security-policy'] = csp
-              .split(';')
-              .filter((directive) => !directive.trim().startsWith('frame-ancestors'))
-              .join(';');
-          }
-        },
-      },
-    }),
-  );
-
   app.use(helmet());
+  app.use(cors({ origin: env.corsOrigin }));
   app.use(express.json());
 
   app.get('/health', (_req, res) => {
@@ -99,40 +47,6 @@ export function createApp(): Express {
 
   app.use('/api/v1/auth', authLimiter);
   app.use('/api/v1', generalLimiter, apiV1Router);
-
-  // fallback do console do MinIO: ele referencia os proprios assets (CSS/JS/
-  // fontes) por caminho absoluto a partir da raiz do dominio (ex.:
-  // /styles/root-styles.css), sem saber que esta sendo servido debaixo de
-  // /api/v1/admin/minio-console - essas requisicoes chegam aqui, fora
-  // daquele prefixo, e cairiam no 404 normal da API. So encaminha pro MinIO
-  // se o cookie de sessao do console existir E for um token valido com o
-  // escopo certo (nao so presente) - e o ULTIMO middleware antes do 404,
-  // entao nunca disputa com nenhuma rota real da API. Sem pathRewrite: esses
-  // caminhos ja chegam "crus" (ex. /styles/root-styles.css) e o MinIO espera
-  // exatamente esse mesmo caminho na raiz dele.
-  const minioConsoleAssetFallback = createProxyMiddleware({
-    target: env.minioConsoleUrl,
-    changeOrigin: true,
-    on: {
-      proxyRes: (proxyRes) => {
-        delete proxyRes.headers['x-frame-options'];
-      },
-    },
-  });
-
-  app.use((req, res, next) => {
-    const cookieToken = (req.cookies as Record<string, string> | undefined)?.['fc_scoped_minio-console'];
-    if (!cookieToken) return next();
-
-    try {
-      const payload = verifyAccessToken(cookieToken);
-      if (payload.scope !== 'minio-console') return next();
-    } catch {
-      return next();
-    }
-
-    minioConsoleAssetFallback(req, res, next);
-  });
 
   app.use(notFoundHandler);
   app.use(errorHandler);

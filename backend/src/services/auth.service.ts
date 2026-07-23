@@ -10,7 +10,6 @@ const verifyOptions: VerifyOptions = { algorithms: [JWT_ALGORITHM] };
 export interface JwtPayload {
   sub: string;
   role: 'admin' | 'manager' | 'operator';
-  scope?: string;
 }
 
 export async function hashPin(pin: string): Promise<string> {
@@ -44,16 +43,6 @@ export function signRefreshToken(payload: JwtPayload, expiresIn?: string): strin
 
 export function verifyAccessToken(token: string): JwtPayload {
   return jwt.verify(token, env.jwtSecret, verifyOptions) as JwtPayload;
-}
-
-// token de vida curta (5min) e com escopo unico ("minio-console"), usado so
-// pro iframe do console do MinIO - reduz o estrago se essa URL vazar (log de
-// acesso, historico do navegador, header Referer) na comparacao com colocar
-// o access token normal (de horas de validade e com acesso a API inteira) na
-// query string
-export function signScopedToken(payload: JwtPayload, scope: string, expiresIn: string): string {
-  const options: SignOptions = { expiresIn: expiresIn as SignOptions['expiresIn'], algorithm: JWT_ALGORITHM };
-  return jwt.sign({ ...payload, scope }, env.jwtSecret, options);
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {

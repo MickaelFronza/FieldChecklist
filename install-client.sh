@@ -232,8 +232,8 @@ BCRYPT_SALT_ROUNDS=10
 ADMIN_EMAIL=$ADMIN_EMAIL
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 
-# console (9001) so acessivel via proxy interno do backend, nunca publico
-MINIO_CONSOLE_URL=http://minio:9001
+# console (9001) nao fica publico - so em 127.0.0.1 no servidor, acessivel
+# via "ssh -L 9001:localhost:9001"
 # upload continua direto na rede interna (rapido); o link pre-assinado que o
 # navegador usa e montado com o dominio publico do storage
 S3_ENDPOINT=http://minio:9000

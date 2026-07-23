@@ -3,7 +3,9 @@
 # mariadb/redis/minio ficam só na rede interna deste projeto (não expostos a
 # nada); frontend/backend/minio (porta 9000, fotos) também entram na rede do
 # Traefik pra ganhar domínio público com TLS. O console do MinIO (9001) NUNCA
-# leva label do Traefik - só é alcançável pelo proxy interno do backend.
+# leva label do Traefik nem fica acessível pela internet - só publicado em
+# 127.0.0.1 (loopback do próprio servidor), acessível via túnel SSH quando
+# precisar (ver README/instruções de acesso ao console).
 
 services:
   mariadb:
@@ -41,6 +43,11 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      # console (9001) so em loopback - nunca 0.0.0.0 - alcancavel so via
+      # "ssh -L 9001:localhost:9001 usuario@servidor" a partir da propria
+      # maquina do servidor, nunca direto da internet
+      - "127.0.0.1:9001:9001"
     volumes:
       - ${VOLUMES}/minio:/data
     networks:
