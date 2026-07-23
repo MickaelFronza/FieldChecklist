@@ -1,6 +1,8 @@
 import { apiClient } from '@/lib/apiClient';
 import type { User, UserDevice, UserRole } from '@/types/api';
 
+export type CreatableRole = Exclude<UserRole, 'admin'>;
+
 export async function fetchUsers(): Promise<User[]> {
   const { data } = await apiClient.get<User[]>('/users');
   return data;
@@ -8,9 +10,11 @@ export async function fetchUsers(): Promise<User[]> {
 
 export interface CreateUserInput {
   name: string;
-  pin: string;
-  role: UserRole;
-  maxDevices: number;
+  role: CreatableRole;
+  pin?: string;
+  email?: string;
+  password?: string;
+  maxDevices?: number;
 }
 
 export async function createUser(input: CreateUserInput): Promise<User> {
@@ -20,10 +24,11 @@ export async function createUser(input: CreateUserInput): Promise<User> {
 
 export interface UpdateUserInput {
   name?: string;
-  pin?: string;
-  role?: UserRole;
   active?: boolean;
   maxDevices?: number;
+  pin?: string;
+  email?: string;
+  password?: string;
 }
 
 export async function updateUser(id: string, input: UpdateUserInput): Promise<User> {

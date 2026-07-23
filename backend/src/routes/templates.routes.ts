@@ -6,5 +6,5 @@ export const templatesRoutes = Router();
 
 templatesRoutes.get('/templates/active', authenticate, getActiveTemplates);
 templatesRoutes.get('/templates', authenticate, authorize('admin', 'manager'), listTemplates);
-templatesRoutes.post('/templates', authenticate, authorize('admin'), createTemplate);
-templatesRoutes.put('/templates/:id', authenticate, authorize('admin'), updateTemplate);
+templatesRoutes.post('/templates', authenticate, authorize('admin', 'manager'), createTemplate);
+templatesRoutes.put('/templates/:id', authenticate, authorize('admin', 'manager'), updateTemplate);

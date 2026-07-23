@@ -1,33 +1,28 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { Alert, Autocomplete, Avatar, Box, Button, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Paper, TextField, Typography } from '@mui/material';
 import ChecklistRtlIcon from '@mui/icons-material/ChecklistRtl';
-import { useLogin, useLoginOptions } from './useLogin';
-import type { LoginOption } from '@/types/api';
+import { useLogin } from './useLogin';
 
 function getLoginErrorMessage(error: unknown): string {
   if (isAxiosError<{ error?: string }>(error) && error.response?.data?.error) {
     return error.response.data.error;
   }
-  return 'PIN invalido ou usuario bloqueado. Tente novamente.';
+  return 'Email ou senha inválidos. Tente novamente.';
 }
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { data: options, isLoading: loadingOptions } = useLoginOptions();
   const loginMutation = useLogin();
-  const [selectedUser, setSelectedUser] = useState<LoginOption | null>(null);
-  const [pin, setPin] = useState('');
-
-  const staffOptions = (options ?? []).filter((option) => option.role !== 'operator');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedUser) return;
 
     loginMutation.mutate(
-      { nameId: selectedUser.id, pin },
+      { email, password },
       { onSuccess: () => navigate('/executions', { replace: true }) },
     );
   };
@@ -55,25 +50,25 @@ export function LoginPage() {
           </Typography>
         </Box>
 
-        <Autocomplete
+        <TextField
           sx={{ mt: 3 }}
-          options={staffOptions}
-          loading={loadingOptions}
-          getOptionLabel={(option) => option.name}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          value={selectedUser}
-          onChange={(_, value) => setSelectedUser(value)}
-          renderInput={(params) => <TextField {...params} label="Nome" required />}
+          fullWidth
+          label="Email"
+          type="email"
+          autoComplete="username"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
         />
 
         <TextField
           sx={{ mt: 2 }}
           fullWidth
-          label="PIN"
+          label="Senha"
           type="password"
-          inputMode="numeric"
-          value={pin}
-          onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           required
         />
 
@@ -88,7 +83,7 @@ export function LoginPage() {
           type="submit"
           variant="contained"
           fullWidth
-          disabled={!selectedUser || pin.length !== 4 || loginMutation.isPending}
+          disabled={!email || !password || loginMutation.isPending}
         >
           {loginMutation.isPending ? 'Entrando...' : 'Entrar'}
         </Button>

@@ -21,6 +21,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import ChecklistIcon from '@mui/icons-material/Checklist';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import PeopleIcon from '@mui/icons-material/People';
+import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { connectSocket, disconnectSocket } from '@/lib/socketClient';
@@ -38,9 +39,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Execuções', path: '/executions', icon: <AssignmentIcon />, roles: ['admin', 'manager'] },
   { label: 'Relatórios', path: '/reports', icon: <BarChartIcon />, roles: ['admin', 'manager'] },
-  { label: 'Templates', path: '/templates', icon: <ChecklistIcon />, roles: ['admin'] },
-  { label: 'Máquinas', path: '/machines', icon: <AgricultureIcon />, roles: ['admin'] },
-  { label: 'Usuários', path: '/users', icon: <PeopleIcon />, roles: ['admin'] },
+  { label: 'Templates', path: '/templates', icon: <ChecklistIcon />, roles: ['admin', 'manager'] },
+  { label: 'Máquinas', path: '/machines', icon: <AgricultureIcon />, roles: ['admin', 'manager'] },
+  { label: 'Usuários', path: '/users', icon: <PeopleIcon />, roles: ['admin', 'manager'] },
+  { label: 'Aparelhos', path: '/devices', icon: <PhoneIphoneIcon />, roles: ['admin'] },
 ];
 
 export function AppLayout() {

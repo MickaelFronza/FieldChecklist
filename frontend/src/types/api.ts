@@ -3,6 +3,7 @@ export type UserRole = 'admin' | 'manager' | 'operator';
 export interface User {
   id: string;
   name: string;
+  email: string | null;
   role: UserRole;
   active: boolean;
   maxDevices: number;
@@ -18,12 +19,6 @@ export interface UserDevice {
   active: boolean;
   firstSeenAt: string;
   lastSeenAt: string;
-}
-
-export interface LoginOption {
-  id: string;
-  name: string;
-  role: UserRole;
 }
 
 export interface Machine {
@@ -108,4 +103,13 @@ export interface DailyReport {
 export interface OperatorReport {
   operator: Pick<User, 'id' | 'name' | 'role'>;
   executions: ChecklistExecution[];
+}
+
+export interface DeviceMonitorEntry {
+  id: string;
+  deviceId: string;
+  active: boolean;
+  lastSeenAt: string;
+  user: Pick<User, 'id' | 'name' | 'role'>;
+  lastLocation: { lat: string; lng: string; at: string } | null;
 }

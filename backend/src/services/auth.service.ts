@@ -15,13 +15,18 @@ export async function verifyPin(pin: string, pinHash: string): Promise<boolean> 
   return bcrypt.compare(pin, pinHash);
 }
 
+// senha de Admin/Gestor usa o mesmo bcrypt do PIN - so o nome muda pra
+// deixar a leitura do codigo clara em cada fluxo
+export const hashPassword = hashPin;
+export const verifyPassword = verifyPin;
+
 export function signAccessToken(payload: JwtPayload): string {
   const options: SignOptions = { expiresIn: env.jwtExpiresIn as SignOptions['expiresIn'] };
   return jwt.sign(payload, env.jwtSecret, options);
 }
 
-export function signRefreshToken(payload: JwtPayload): string {
-  const options: SignOptions = { expiresIn: env.jwtRefreshExpiresIn as SignOptions['expiresIn'] };
+export function signRefreshToken(payload: JwtPayload, expiresIn?: string): string {
+  const options: SignOptions = { expiresIn: (expiresIn ?? env.jwtRefreshExpiresIn) as SignOptions['expiresIn'] };
   return jwt.sign(payload, env.jwtRefreshSecret, options);
 }
 

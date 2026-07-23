@@ -8,6 +8,7 @@ import { ReportsPage } from '@/features/reports/ReportsPage';
 import { TemplatesPage } from '@/features/templates/TemplatesPage';
 import { MachinesPage } from '@/features/machines/MachinesPage';
 import { UsersPage } from '@/features/users/UsersPage';
+import { DeviceMonitorPage } from '@/features/devices/DeviceMonitorPage';
 
 export function App() {
   return (
@@ -21,10 +22,14 @@ export function App() {
           <Route path="/executions/:id" element={<ExecutionDetailPage />} />
           <Route path="/reports" element={<ReportsPage />} />
 
-          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/machines" element={<MachinesPage />} />
             <Route path="/users" element={<UsersPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route path="/devices" element={<DeviceMonitorPage />} />
           </Route>
         </Route>
       </Route>

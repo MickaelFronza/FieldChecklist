@@ -19,6 +19,7 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '8h',
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
+  jwtRefreshExpiresInWeb: process.env.JWT_REFRESH_EXPIRES_IN_WEB ?? '90d',
 
   bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
 

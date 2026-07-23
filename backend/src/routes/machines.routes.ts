@@ -6,5 +6,5 @@ export const machinesRoutes = Router();
 
 machinesRoutes.get('/machines/active', authenticate, getActiveMachines);
 machinesRoutes.get('/machines', authenticate, authorize('admin', 'manager'), listMachines);
-machinesRoutes.post('/machines', authenticate, authorize('admin'), createMachine);
-machinesRoutes.put('/machines/:id', authenticate, authorize('admin'), updateMachine);
+machinesRoutes.post('/machines', authenticate, authorize('admin', 'manager'), createMachine);
+machinesRoutes.put('/machines/:id', authenticate, authorize('admin', 'manager'), updateMachine);
