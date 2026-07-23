@@ -54,11 +54,19 @@ export function authenticateFromQueryOrHeader(expectedScope: string) {
       req.user = payload;
 
       // 1a requisicao (com ?token= na URL) grava o cookie pras chamadas
-      // seguintes do mesmo path nao precisarem do query param
+      // seguintes do mesmo path nao precisarem do query param. SameSite=None
+      // (+ Secure, exigido junto) e obrigatorio aqui - o iframe roda dentro
+      // de uma pagina de outro (sub)dominio (frontend em fieldcheck.X,
+      // backend em fieldcheck-api.X), entao pro navegador isso conta como
+      // contexto de terceiros; com SameSite=Lax (o padrao) o cookie e
+      // silenciosamente descartado e as chamadas seguintes do console viram
+      // 401 - so a navegacao inicial (que carrega o ?token= na propria URL)
+      // funcionava, dando exatamente a tela de "conexao" quebrada no iframe.
       if (fromQuery) {
         res.cookie(cookieName, fromQuery, {
           httpOnly: true,
-          sameSite: 'lax',
+          secure: true,
+          sameSite: 'none',
           maxAge: 5 * 60 * 1000,
           path: '/api/v1/admin/minio-console',
         });
