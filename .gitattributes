@@ -1,0 +1,4 @@
+# scripts de shell precisam ficar sempre com LF - CRLF quebra o shebang/
+# execução deles num servidor Linux (é lá que install-client.sh/
+# deprovision-client.sh de fato rodam)
+*.sh text eol=lf

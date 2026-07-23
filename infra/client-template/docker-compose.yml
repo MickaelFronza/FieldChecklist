@@ -1,0 +1,122 @@
+# Stack isolada de UM cliente do FieldCheck - copiada e preenchida por
+# install-client.sh, nunca editada diretamente aqui (isso aqui é só o molde).
+# mariadb/redis/minio ficam só na rede interna deste projeto (não expostos a
+# nada); frontend/backend/minio (porta 9000, fotos) também entram na rede do
+# Traefik pra ganhar domínio público com TLS. O console do MinIO (9001) NUNCA
+# leva label do Traefik - só é alcançável pelo proxy interno do backend.
+
+services:
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${VOLUMES}/mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - ${VOLUMES}/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ${VOLUMES}/minio:/data
+    networks:
+      - default
+      - traefik
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.${CLIENT_SLUG}-storage.rule=Host(`${STORAGE_DOMAIN}`)
+      - traefik.http.routers.${CLIENT_SLUG}-storage.entrypoints=${TRAEFIK_ENTRYPOINT}
+      - traefik.http.routers.${CLIENT_SLUG}-storage.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
+      - traefik.http.services.${CLIENT_SLUG}-storage.loadbalancer.server.port=9000
+
+  backend:
+    build: ${REPO_ROOT}/backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - default
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.${CLIENT_SLUG}-api.rule=Host(`${BACKEND_DOMAIN}`)
+      - traefik.http.routers.${CLIENT_SLUG}-api.entrypoints=${TRAEFIK_ENTRYPOINT}
+      - traefik.http.routers.${CLIENT_SLUG}-api.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
+      - traefik.http.services.${CLIENT_SLUG}-api.loadbalancer.server.port=3000
+
+  worker:
+    build: ${REPO_ROOT}/backend
+    restart: unless-stopped
+    command: npm run worker
+    env_file: .env
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ${REPO_ROOT}/frontend
+      args:
+        VITE_API_URL: https://${BACKEND_DOMAIN}/api/v1
+        VITE_SOCKET_URL: https://${BACKEND_DOMAIN}
+        VITE_APK_DOWNLOAD_URL: ${APK_DOWNLOAD_URL}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.${CLIENT_SLUG}-frontend.rule=Host(`${FRONTEND_DOMAIN}`)
+      - traefik.http.routers.${CLIENT_SLUG}-frontend.entrypoints=${TRAEFIK_ENTRYPOINT}
+      - traefik.http.routers.${CLIENT_SLUG}-frontend.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
+      - traefik.http.services.${CLIENT_SLUG}-frontend.loadbalancer.server.port=8080
+
+networks:
+  default:
+    name: ${CLIENT_SLUG}_internal
+  traefik:
+    name: ${TRAEFIK_NETWORK}
+    external: true

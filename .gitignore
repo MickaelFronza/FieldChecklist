@@ -11,3 +11,8 @@ coverage/
 
 # Docker volumes data (if bind-mounted locally)
 docker-data/
+
+# Clientes instalados por install-client.sh (config/segredos por cliente e
+# dados de mariadb/redis/minio) - nunca deve ir pro repo
+clients/
+clients-data/

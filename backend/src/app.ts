@@ -13,9 +13,11 @@ export function createApp(): Express {
   const app = express();
 
   // necessario pra req.ip refletir o IP real do cliente quando atras de um
-  // reverse proxy/load balancer na nuvem (Cloudflare, nginx, etc.) -
-  // sem isso, checagem de regiao no refresh sempre veria o IP do proxy
-  app.set('trust proxy', 1);
+  // reverse proxy/load balancer na nuvem (Cloudflare, Traefik, nginx, etc.) -
+  // sem isso, checagem de regiao no refresh e o rate limit sempre veriam o
+  // IP do ultimo proxy, nao o do cliente. Configuravel via TRUST_PROXY_HOPS
+  // pra ambientes com mais de um proxy na frente (ex.: Cloudflare + Traefik).
+  app.set('trust proxy', env.trustProxyHops);
 
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigin }));
