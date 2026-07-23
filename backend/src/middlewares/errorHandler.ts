@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { ApiError } from '../utils/apiError';
 
 export function notFoundHandler(req: Request, res: Response): void {
@@ -9,6 +10,11 @@ export function notFoundHandler(req: Request, res: Response): void {
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction): void {
   if (err instanceof ApiError) {
     res.status(err.statusCode).json({ error: err.message });
+    return;
+  }
+
+  if (err instanceof ZodError) {
+    res.status(400).json({ error: 'Dados invalidos', details: err.issues });
     return;
   }
 

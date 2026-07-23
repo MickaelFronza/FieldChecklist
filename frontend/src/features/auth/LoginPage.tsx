@@ -1,8 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Autocomplete, Box, Button, Paper, TextField, Typography } from '@mui/material';
+import { isAxiosError } from 'axios';
+import { Alert, Autocomplete, Avatar, Box, Button, Paper, TextField, Typography } from '@mui/material';
+import ChecklistRtlIcon from '@mui/icons-material/ChecklistRtl';
 import { useLogin, useLoginOptions } from './useLogin';
 import type { LoginOption } from '@/types/api';
+
+function getLoginErrorMessage(error: unknown): string {
+  if (isAxiosError<{ error?: string }>(error) && error.response?.data?.error) {
+    return error.response.data.error;
+  }
+  return 'PIN invalido ou usuario bloqueado. Tente novamente.';
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -30,16 +39,21 @@ export function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'grey.100',
+        background: 'linear-gradient(160deg, #E8F5E9 0%, #FAFAFA 55%)',
       }}
     >
-      <Paper component="form" onSubmit={handleSubmit} sx={{ p: 4, width: 360 }}>
-        <Typography variant="h5" gutterBottom>
-          Field Checklist
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Painel do Gestor/Admin
-        </Typography>
+      <Paper component="form" onSubmit={handleSubmit} elevation={3} sx={{ p: 4, width: 360, borderRadius: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56, mb: 1.5 }}>
+            <ChecklistRtlIcon fontSize="large" />
+          </Avatar>
+          <Typography variant="h5" gutterBottom>
+            Field Checklist
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Painel do Gestor/Admin
+          </Typography>
+        </Box>
 
         <Autocomplete
           sx={{ mt: 3 }}
@@ -65,7 +79,7 @@ export function LoginPage() {
 
         {loginMutation.isError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            PIN invalido ou usuario bloqueado. Tente novamente.
+            {getLoginErrorMessage(loginMutation.error)}
           </Alert>
         )}
 

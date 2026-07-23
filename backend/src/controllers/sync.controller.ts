@@ -20,6 +20,8 @@ const batchSchema = z.object({
     status: z.enum(['in_progress', 'completed', 'incomplete']),
     startedAt: z.string(),
     completedAt: z.string().nullable().optional(),
+    startedLat: z.number().nullable().optional(),
+    startedLng: z.number().nullable().optional(),
   }),
   items: z.array(
     z.object({

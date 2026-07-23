@@ -56,6 +56,22 @@ export function ExecutionDetailPage() {
                 {execution.completedAt ? new Date(execution.completedAt).toLocaleString('pt-BR') : '—'}
               </Typography>
             </Grid>
+            {execution.startedLat && execution.startedLng && (
+              <Grid item xs={12} sm={3}>
+                <Typography variant="caption" color="text.secondary">
+                  Localização
+                </Typography>
+                <Typography>
+                  <Link
+                    href={`https://www.google.com/maps?q=${execution.startedLat},${execution.startedLng}`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {Number(execution.startedLat).toFixed(5)}, {Number(execution.startedLng).toFixed(5)}
+                  </Link>
+                </Typography>
+              </Grid>
+            )}
           </Grid>
         </CardContent>
       </Card>
@@ -85,11 +101,26 @@ export function ExecutionDetailPage() {
                 )}
                 {item.photoUrl && (
                   <Box
-                    component="img"
-                    src={item.photoUrl}
-                    alt={item.templateItem?.title ?? 'Foto do item'}
-                    sx={{ mt: 1, width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 1 }}
-                  />
+                    component="a"
+                    href={item.photoUrl}
+                    target="_blank"
+                    rel="noopener"
+                    sx={{ display: 'block', mt: 1 }}
+                  >
+                    <Box
+                      component="img"
+                      src={item.photoUrl}
+                      alt={item.templateItem?.title ?? 'Foto do item'}
+                      sx={{
+                        width: '100%',
+                        maxHeight: 320,
+                        objectFit: 'contain',
+                        bgcolor: 'grey.100',
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                      }}
+                    />
+                  </Box>
                 )}
               </CardContent>
             </Card>

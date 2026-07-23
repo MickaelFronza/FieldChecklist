@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   MenuItem,
+  Paper,
   Stack,
   Table,
   TableBody,
@@ -16,6 +17,8 @@ import { fetchDailyReport, fetchOperatorReport } from './api';
 import { fetchUsers } from '@/features/users/api';
 import { StatTile } from '@/components/common/StatTile';
 import { ExecutionStatusChip } from '@/components/common/StatusChip';
+import { LoadingState } from '@/components/common/LoadingState';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export function ReportsPage() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -51,13 +54,17 @@ export function ReportsPage() {
         sx={{ mb: 2 }}
       />
 
-      {!loadingDaily && dailyReport && (
-        <Stack direction="row" spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
-          <StatTile label="Total de execuções" value={dailyReport.totalExecutions} />
-          <StatTile label="Concluídas" value={dailyReport.completedExecutions} color="success.main" />
-          <StatTile label="Incompletas" value={dailyReport.incompleteExecutions} color="warning.main" />
-          <StatTile label="Itens não conformes" value={dailyReport.nonConformantItems} color="error.main" />
-        </Stack>
+      {loadingDaily ? (
+        <LoadingState />
+      ) : (
+        dailyReport && (
+          <Stack direction="row" spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
+            <StatTile label="Total de execuções" value={dailyReport.totalExecutions} />
+            <StatTile label="Concluídas" value={dailyReport.completedExecutions} color="success.main" />
+            <StatTile label="Incompletas" value={dailyReport.incompleteExecutions} color="warning.main" />
+            <StatTile label="Itens não conformes" value={dailyReport.nonConformantItems} color="error.main" />
+          </Stack>
+        )
       )}
 
       <Typography variant="h6" sx={{ mb: 1 }}>
@@ -81,31 +88,32 @@ export function ReportsPage() {
       </TextField>
 
       {operatorReport && (
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Data</TableCell>
-              <TableCell>Turno</TableCell>
-              <TableCell>Status</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {operatorReport.executions.map((execution) => (
-              <TableRow key={execution.id}>
-                <TableCell>{new Date(execution.startedAt).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell>{execution.shift}</TableCell>
-                <TableCell>
-                  <ExecutionStatusChip status={execution.status} />
-                </TableCell>
-              </TableRow>
-            ))}
-            {operatorReport.executions.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3}>Nenhuma execução encontrada para este operador.</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+          {operatorReport.executions.length === 0 ? (
+            <EmptyState message="Nenhuma execução encontrada para este operador." />
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Data</TableCell>
+                  <TableCell>Turno</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {operatorReport.executions.map((execution) => (
+                  <TableRow key={execution.id} hover>
+                    <TableCell>{new Date(execution.startedAt).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>{execution.shift}</TableCell>
+                    <TableCell>
+                      <ExecutionStatusChip status={execution.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Paper>
       )}
     </Box>
   );

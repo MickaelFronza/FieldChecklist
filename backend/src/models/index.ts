@@ -6,8 +6,12 @@ import { ChecklistExecution } from './ChecklistExecution';
 import { ExecutionItem } from './ExecutionItem';
 import { SyncQueue } from './SyncQueue';
 import { AuditLog } from './AuditLog';
+import { UserDevice } from './UserDevice';
 
 ChecklistTemplate.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+User.hasMany(UserDevice, { foreignKey: 'userId', as: 'devices' });
+UserDevice.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 ChecklistTemplate.hasMany(TemplateItem, { foreignKey: 'templateId', as: 'items' });
 TemplateItem.belongsTo(ChecklistTemplate, { foreignKey: 'templateId', as: 'template' });
@@ -31,4 +35,5 @@ export {
   ExecutionItem,
   SyncQueue,
   AuditLog,
+  UserDevice,
 };

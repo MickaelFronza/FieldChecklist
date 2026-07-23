@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
+  Paper,
   Switch,
   Table,
   TableBody,
@@ -19,7 +20,10 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { createUser, fetchUsers, updateUser } from './api';
-import type { UserRole } from '@/types/api';
+import { UserDevicesDialog } from './UserDevicesDialog';
+import { LoadingState } from '@/components/common/LoadingState';
+import { EmptyState } from '@/components/common/EmptyState';
+import type { User, UserRole } from '@/types/api';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
@@ -32,10 +36,12 @@ export function UsersPage() {
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: fetchUsers });
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState<{ name: string; pin: string; role: UserRole }>({
+  const [devicesUser, setDevicesUser] = useState<User | null>(null);
+  const [form, setForm] = useState<{ name: string; pin: string; role: UserRole; maxDevices: number }>({
     name: '',
     pin: '',
     role: 'operator',
+    maxDevices: 2,
   });
 
   const createMutation = useMutation({
@@ -43,12 +49,17 @@ export function UsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setDialogOpen(false);
-      setForm({ name: '', pin: '', role: 'operator' });
+      setForm({ name: '', pin: '', role: 'operator', maxDevices: 2 });
     },
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => updateUser(id, { active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+
+  const maxDevicesMutation = useMutation({
+    mutationFn: ({ id, maxDevices }: { id: string; maxDevices: number }) => updateUser(id, { maxDevices }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
@@ -66,34 +77,57 @@ export function UsersPage() {
         </Button>
       </Box>
 
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Nome</TableCell>
-            <TableCell>Perfil</TableCell>
-            <TableCell>Ativo</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {isLoading && (
-            <TableRow>
-              <TableCell colSpan={3}>Carregando...</TableCell>
-            </TableRow>
-          )}
-          {users?.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.name}</TableCell>
-              <TableCell>{ROLE_LABELS[user.role]}</TableCell>
-              <TableCell>
-                <Switch
-                  checked={user.active}
-                  onChange={(event) => toggleActiveMutation.mutate({ id: user.id, active: event.target.checked })}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+        {isLoading ? (
+          <LoadingState />
+        ) : users?.length === 0 ? (
+          <EmptyState message="Nenhum usuário cadastrado ainda." />
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nome</TableCell>
+                <TableCell>Perfil</TableCell>
+                <TableCell>Máx. aparelhos</TableCell>
+                <TableCell>Ativo</TableCell>
+                <TableCell align="right">Aparelhos</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users?.map((user) => (
+                <TableRow key={user.id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>{user.name}</TableCell>
+                  <TableCell>{ROLE_LABELS[user.role]}</TableCell>
+                  <TableCell>
+                    <TextField
+                      type="number"
+                      size="small"
+                      sx={{ width: 80 }}
+                      value={user.maxDevices}
+                      inputProps={{ min: 1 }}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (value >= 1) maxDevicesMutation.mutate({ id: user.id, maxDevices: value });
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={user.active}
+                      onChange={(event) => toggleActiveMutation.mutate({ id: user.id, active: event.target.checked })}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button size="small" onClick={() => setDevicesUser(user)}>
+                      Ver aparelhos
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs">
         <Box component="form" onSubmit={handleSubmit}>
@@ -121,6 +155,13 @@ export function UsersPage() {
               <MenuItem value="manager">Gestor</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
             </TextField>
+            <TextField
+              label="Máx. de aparelhos"
+              type="number"
+              inputProps={{ min: 1 }}
+              value={form.maxDevices}
+              onChange={(event) => setForm({ ...form, maxDevices: Math.max(1, Number(event.target.value)) })}
+            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
@@ -130,6 +171,12 @@ export function UsersPage() {
           </DialogActions>
         </Box>
       </Dialog>
+
+      <UserDevicesDialog
+        userId={devicesUser?.id ?? null}
+        userName={devicesUser?.name ?? ''}
+        onClose={() => setDevicesUser(null)}
+      />
     </Box>
   );
 }

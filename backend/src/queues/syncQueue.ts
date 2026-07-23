@@ -27,6 +27,8 @@ export interface SyncBatchJobData {
     status: ExecutionStatus;
     startedAt: string;
     completedAt?: string | null;
+    startedLat?: number | null;
+    startedLng?: number | null;
   };
   items: SyncBatchItemPayload[];
 }
@@ -47,6 +49,8 @@ syncQueue.process(async (job) => {
       status: execution.status,
       startedAt: new Date(execution.startedAt),
       completedAt: execution.completedAt ? new Date(execution.completedAt) : null,
+      startedLat: execution.startedLat ?? null,
+      startedLng: execution.startedLng ?? null,
       syncedAt: new Date(),
       deviceId,
       appVersion,

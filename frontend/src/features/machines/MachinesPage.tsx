@@ -7,6 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Paper,
   Switch,
   Table,
   TableBody,
@@ -18,6 +19,8 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { createMachine, fetchMachines, updateMachine } from './api';
+import { LoadingState } from '@/components/common/LoadingState';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export function MachinesPage() {
   const queryClient = useQueryClient();
@@ -54,36 +57,39 @@ export function MachinesPage() {
         </Button>
       </Box>
 
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Código</TableCell>
-            <TableCell>Nome</TableCell>
-            <TableCell>Tipo</TableCell>
-            <TableCell>Ativa</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {isLoading && (
-            <TableRow>
-              <TableCell colSpan={4}>Carregando...</TableCell>
-            </TableRow>
-          )}
-          {machines?.map((machine) => (
-            <TableRow key={machine.id}>
-              <TableCell>{machine.code}</TableCell>
-              <TableCell>{machine.name}</TableCell>
-              <TableCell>{machine.type}</TableCell>
-              <TableCell>
-                <Switch
-                  checked={machine.active}
-                  onChange={(event) => toggleActiveMutation.mutate({ id: machine.id, active: event.target.checked })}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+        {isLoading ? (
+          <LoadingState />
+        ) : machines?.length === 0 ? (
+          <EmptyState message="Nenhuma máquina cadastrada ainda." />
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Código</TableCell>
+                <TableCell>Nome</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Ativa</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {machines?.map((machine) => (
+                <TableRow key={machine.id} hover>
+                  <TableCell sx={{ fontFamily: 'monospace' }}>{machine.code}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{machine.name}</TableCell>
+                  <TableCell>{machine.type}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={machine.active}
+                      onChange={(event) => toggleActiveMutation.mutate({ id: machine.id, active: event.target.checked })}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs">
         <Box component="form" onSubmit={handleSubmit}>

@@ -27,7 +27,7 @@ export function useAuthBootstrap(): boolean {
         if (!matchedUser) throw new Error('Usuario nao encontrado');
 
         setSession({
-          user: { id: matchedUser.id, name: matchedUser.name, role: matchedUser.role, active: true },
+          user: { id: matchedUser.id, name: matchedUser.name, role: matchedUser.role, active: true, maxDevices: 2 },
           accessToken: newAccessToken,
           refreshToken,
         });

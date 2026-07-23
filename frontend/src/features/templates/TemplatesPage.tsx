@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  Paper,
   Table,
   TableBody,
   TableCell,
@@ -14,6 +15,8 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import { createTemplate, fetchTemplates, updateTemplate } from './api';
 import { TemplateFormDialog, type TemplateFormValues } from './TemplateFormDialog';
+import { LoadingState } from '@/components/common/LoadingState';
+import { EmptyState } from '@/components/common/EmptyState';
 import type { ChecklistTemplate } from '@/types/api';
 
 export function TemplatesPage() {
@@ -49,47 +52,50 @@ export function TemplatesPage() {
         </Button>
       </Box>
 
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Nome</TableCell>
-            <TableCell>Tipo de Máquina</TableCell>
-            <TableCell>Versão</TableCell>
-            <TableCell>Itens</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell align="right">Ações</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {isLoading && (
-            <TableRow>
-              <TableCell colSpan={6}>Carregando...</TableCell>
-            </TableRow>
-          )}
-          {templates?.map((template) => (
-            <TableRow key={template.id}>
-              <TableCell>{template.name}</TableCell>
-              <TableCell>{template.machineType ?? 'Todas'}</TableCell>
-              <TableCell>v{template.version}</TableCell>
-              <TableCell>{template.items?.length ?? 0}</TableCell>
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={template.active ? 'Ativo' : 'Substituído'}
-                  color={template.active ? 'success' : 'default'}
-                />
-              </TableCell>
-              <TableCell align="right">
-                {template.active && (
-                  <Button size="small" onClick={() => setVersioningTemplate(template)}>
-                    Nova Versão
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+        {isLoading ? (
+          <LoadingState />
+        ) : templates?.length === 0 ? (
+          <EmptyState message="Nenhum template cadastrado ainda." />
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nome</TableCell>
+                <TableCell>Tipo de Máquina</TableCell>
+                <TableCell>Versão</TableCell>
+                <TableCell>Itens</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Ações</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {templates?.map((template) => (
+                <TableRow key={template.id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>{template.name}</TableCell>
+                  <TableCell>{template.machineType ?? 'Todas'}</TableCell>
+                  <TableCell>v{template.version}</TableCell>
+                  <TableCell>{template.items?.length ?? 0}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={template.active ? 'Ativo' : 'Substituído'}
+                      color={template.active ? 'success' : 'default'}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    {template.active && (
+                      <Button size="small" onClick={() => setVersioningTemplate(template)}>
+                        Nova Versão
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
 
       <TemplateFormDialog
         open={createOpen}

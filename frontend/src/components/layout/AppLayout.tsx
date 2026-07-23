@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Alert,
   AppBar,
@@ -45,6 +45,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { user, accessToken, logout } = useAuthStore();
   const [connected, setConnected] = useState(false);
@@ -95,7 +96,11 @@ export function AppLayout() {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, borderBottom: '1px solid', borderColor: 'primary.dark' }}
+      >
         <Toolbar sx={{ gap: 2 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Field Checklist
@@ -116,16 +121,37 @@ export function AppLayout() {
 
       <Drawer
         variant="permanent"
-        sx={{ width: DRAWER_WIDTH, flexShrink: 0, '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' } }}
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box', borderRight: '1px solid', borderColor: 'divider' },
+        }}
       >
         <Toolbar />
-        <List>
-          {visibleNavItems.map((item) => (
-            <ListItemButton key={item.path} component={NavLink} to={item.path}>
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          ))}
+        <List sx={{ px: 1 }}>
+          {visibleNavItems.map((item) => {
+            const isActive = location.pathname.startsWith(item.path);
+            return (
+              <ListItemButton
+                key={item.path}
+                component={NavLink}
+                to={item.path}
+                selected={isActive}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  '&.Mui-selected': {
+                    bgcolor: 'primary.light',
+                    color: 'primary.dark',
+                    '& .MuiListItemIcon-root': { color: 'primary.dark' },
+                  },
+                }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive ? 700 : 400 }} />
+              </ListItemButton>
+            );
+          })}
         </List>
       </Drawer>
 

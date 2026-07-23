@@ -5,8 +5,19 @@ export interface User {
   name: string;
   role: UserRole;
   active: boolean;
+  maxDevices: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface UserDevice {
+  id: string;
+  userId: string;
+  deviceId: string;
+  deviceName: string | null;
+  active: boolean;
+  firstSeenAt: string;
+  lastSeenAt: string;
 }
 
 export interface LoginOption {
@@ -78,6 +89,8 @@ export interface ChecklistExecution {
   syncedAt: string | null;
   deviceId: string;
   appVersion: string;
+  startedLat: string | null;
+  startedLng: string | null;
   machine?: Machine;
   operator?: Pick<User, 'id' | 'name'>;
   items?: ExecutionItem[];

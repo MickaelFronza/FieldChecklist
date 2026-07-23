@@ -9,11 +9,15 @@ export interface UserAttributes {
   pinHash: string;
   role: UserRole;
   active: boolean;
+  maxDevices: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type UserCreationAttributes = Optional<UserAttributes, 'id' | 'active' | 'createdAt' | 'updatedAt'>;
+export type UserCreationAttributes = Optional<
+  UserAttributes,
+  'id' | 'active' | 'maxDevices' | 'createdAt' | 'updatedAt'
+>;
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;
@@ -21,6 +25,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare pinHash: string;
   declare role: UserRole;
   declare active: boolean;
+  declare maxDevices: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -49,6 +54,12 @@ User.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
+    },
+    maxDevices: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 2,
+      field: 'max_devices',
     },
     createdAt: {
       type: DataTypes.DATE,

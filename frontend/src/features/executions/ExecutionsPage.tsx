@@ -4,6 +4,7 @@ import {
   Box,
   Link,
   MenuItem,
+  Paper,
   Table,
   TableBody,
   TableCell,
@@ -17,6 +18,8 @@ import { fetchMachines } from '@/features/machines/api';
 import { fetchUsers } from '@/features/users/api';
 import { useReportFiltersStore } from '@/stores/reportFiltersStore';
 import { ExecutionStatusChip } from '@/components/common/StatusChip';
+import { LoadingState } from '@/components/common/LoadingState';
+import { EmptyState } from '@/components/common/EmptyState';
 
 export function ExecutionsPage() {
   const { executionFilters, setExecutionFilters } = useReportFiltersStore();
@@ -90,44 +93,42 @@ export function ExecutionsPage() {
         </TextField>
       </Box>
 
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Máquina</TableCell>
-            <TableCell>Operador</TableCell>
-            <TableCell>Turno</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Início</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {isLoading && (
-            <TableRow>
-              <TableCell colSpan={5}>Carregando...</TableCell>
-            </TableRow>
-          )}
-          {executions?.length === 0 && !isLoading && (
-            <TableRow>
-              <TableCell colSpan={5}>Nenhuma execução encontrada para os filtros selecionados.</TableCell>
-            </TableRow>
-          )}
-          {executions?.map((execution) => (
-            <TableRow key={execution.id} hover>
-              <TableCell>
-                <Link component={RouterLink} to={`/executions/${execution.id}`}>
-                  {execution.machine?.name ?? execution.machineId}
-                </Link>
-              </TableCell>
-              <TableCell>{execution.operator?.name ?? execution.operatorId}</TableCell>
-              <TableCell>{execution.shift}</TableCell>
-              <TableCell>
-                <ExecutionStatusChip status={execution.status} />
-              </TableCell>
-              <TableCell>{new Date(execution.startedAt).toLocaleString('pt-BR')}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+        {isLoading ? (
+          <LoadingState />
+        ) : executions?.length === 0 ? (
+          <EmptyState message="Nenhuma execução encontrada para os filtros selecionados." />
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Máquina</TableCell>
+                <TableCell>Operador</TableCell>
+                <TableCell>Turno</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Início</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {executions?.map((execution) => (
+                <TableRow key={execution.id} hover>
+                  <TableCell>
+                    <Link component={RouterLink} to={`/executions/${execution.id}`} sx={{ fontWeight: 600 }}>
+                      {execution.machine?.name ?? execution.machineId}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{execution.operator?.name ?? execution.operatorId}</TableCell>
+                  <TableCell>{execution.shift}</TableCell>
+                  <TableCell>
+                    <ExecutionStatusChip status={execution.status} />
+                  </TableCell>
+                  <TableCell>{new Date(execution.startedAt).toLocaleString('pt-BR')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
     </Box>
   );
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { User } from '../models';
+import { User, UserDevice } from '../models';
 import { signAccessToken, signRefreshToken, verifyPin, verifyRefreshToken } from '../services/auth.service';
 import { redisClient } from '../config/redisClient';
 import { ApiError } from '../utils/apiError';
@@ -13,7 +13,28 @@ const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const loginSchema = z.object({
   nameId: z.string().uuid(),
   pin: z.string().regex(/^\d{4}$/),
+  deviceId: z.string().min(1),
 });
+
+async function authorizeDevice(user: User, deviceId: string): Promise<void> {
+  const existing = await UserDevice.findOne({ where: { userId: user.id, deviceId } });
+
+  if (existing) {
+    if (!existing.active) {
+      throw new ApiError(403, 'Este aparelho foi desativado. Contate o administrador.');
+    }
+    await existing.update({ lastSeenAt: new Date() });
+    return;
+  }
+
+  const activeDeviceCount = await UserDevice.count({ where: { userId: user.id, active: true } });
+  if (activeDeviceCount >= user.maxDevices) {
+    throw new ApiError(403, 'Limite de aparelhos atingido para este usuário. Contate o administrador.');
+  }
+
+  const now = new Date();
+  await UserDevice.create({ userId: user.id, deviceId, firstSeenAt: now, lastSeenAt: now });
+}
 
 export const getLoginOptions = asyncHandler(async (_req: Request, res: Response) => {
   const users = await User.findAll({
@@ -25,7 +46,7 @@ export const getLoginOptions = asyncHandler(async (_req: Request, res: Response)
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const { nameId, pin } = loginSchema.parse(req.body);
+  const { nameId, pin, deviceId } = loginSchema.parse(req.body);
 
   const attemptsKey = `login_attempts:${nameId}`;
   const attempts = Number((await redisClient.get(attemptsKey)) ?? 0);
@@ -40,6 +61,10 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   await redisClient.del(attemptsKey);
+
+  // controle de aparelhos: lanca ApiError(403) se o limite foi atingido ou o
+  // device foi revogado pelo admin - antes de emitir qualquer token
+  await authorizeDevice(user, deviceId);
 
   const payload = { sub: user.id, role: user.role };
   const accessToken = signAccessToken(payload);

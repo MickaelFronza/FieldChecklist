@@ -20,13 +20,15 @@ export interface ChecklistExecutionAttributes {
   syncedAt: Date | null;
   deviceId: string;
   appVersion: string;
+  startedLat: number | null;
+  startedLng: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export type ChecklistExecutionCreationAttributes = Optional<
   ChecklistExecutionAttributes,
-  'status' | 'completedAt' | 'syncedAt' | 'createdAt' | 'updatedAt'
+  'status' | 'completedAt' | 'syncedAt' | 'startedLat' | 'startedLng' | 'createdAt' | 'updatedAt'
 >;
 
 export class ChecklistExecution
@@ -44,6 +46,8 @@ export class ChecklistExecution
   declare syncedAt: Date | null;
   declare deviceId: string;
   declare appVersion: string;
+  declare startedLat: number | null;
+  declare startedLng: number | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 
@@ -108,6 +112,16 @@ ChecklistExecution.init(
       type: DataTypes.STRING(20),
       allowNull: false,
       field: 'app_version',
+    },
+    startedLat: {
+      type: DataTypes.DECIMAL(10, 7),
+      allowNull: true,
+      field: 'started_lat',
+    },
+    startedLng: {
+      type: DataTypes.DECIMAL(10, 7),
+      allowNull: true,
+      field: 'started_lng',
     },
     createdAt: {
       type: DataTypes.DATE,
