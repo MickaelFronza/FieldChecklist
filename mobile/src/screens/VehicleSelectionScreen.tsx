@@ -207,7 +207,7 @@ export function VehicleSelectionScreen({ navigation }: Props) {
               <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <Text style={styles.vehicleIcon}>🚜</Text>
+                <Text style={styles.vehicleIcon}>🚗</Text>
                 <Text style={styles.vehicleCode}>{item.code}</Text>
                 <Text style={styles.vehicleName}>{item.name}</Text>
               </>

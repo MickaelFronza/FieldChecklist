@@ -89,10 +89,69 @@ TRAEFIK_NETWORK="${TRAEFIK_NETWORK:-traefik-public}"
 TRAEFIK_CERT_RESOLVER="${TRAEFIK_CERT_RESOLVER:-cloudflare}"
 TRAEFIK_ENTRYPOINT="${TRAEFIK_ENTRYPOINT:-websecure}"
 
+# se a rede configurada nao existe, tenta descobrir sozinho a partir de um
+# container rodando com "traefik" no nome, em vez de simplesmente falhar -
+# evita ter que sair rodando `docker inspect` manualmente a cada servidor
+# novo com um Traefik configurado diferente do padrao assumido aqui
 if ! docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1; then
-  echo "Rede '$TRAEFIK_NETWORK' não existe. Confirme que o Traefik já está no ar e que a" >&2
-  echo "rede dele tem esse nome (ou ajuste TRAEFIK_NETWORK em infra/.env pro nome real)." >&2
-  exit 1
+  echo "==> Rede '$TRAEFIK_NETWORK' não existe - tentando detectar automaticamente"
+  TRAEFIK_CONTAINER=$(docker ps --format '{{.Names}}' | grep -i traefik | head -1 || true)
+
+  if [ -n "$TRAEFIK_CONTAINER" ]; then
+    echo "    Container do Traefik encontrado: $TRAEFIK_CONTAINER"
+
+    # "docker inspect --format" sempre acrescenta uma quebra de linha final
+    # por conta propria, alem da que o template ja gera pra cada rede - filtra
+    # linhas vazias pra nao contar uma "rede fantasma" quando so tem uma real
+    CANDIDATE_NETWORKS=()
+    while IFS= read -r NET; do
+      [ -n "$NET" ] && CANDIDATE_NETWORKS+=("$NET")
+    done < <(docker inspect "$TRAEFIK_CONTAINER" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}')
+
+    if [ "${#CANDIDATE_NETWORKS[@]}" -eq 1 ]; then
+      TRAEFIK_NETWORK="${CANDIDATE_NETWORKS[0]}"
+      echo "    Rede detectada: $TRAEFIK_NETWORK"
+    elif [ "${#CANDIDATE_NETWORKS[@]}" -gt 1 ]; then
+      echo "    O container está em mais de uma rede: ${CANDIDATE_NETWORKS[*]}"
+      read -r -p "    Qual delas é a rede pública do Traefik? " TRAEFIK_NETWORK
+    fi
+
+    # tenta ler o certResolver e o entrypoint HTTPS da propria linha de
+    # comando do Traefik (so funciona se ele for configurado via --flags,
+    # nao via arquivo de config - se nao achar, fica no valor padrao/atual).
+    # usa grep -E (POSIX, sem depender de locale) em vez de -P: -P (PCRE)
+    # falha com "supports only unibyte and UTF-8 locales" em servidores sem
+    # locale UTF-8 configurado - o que aconteceu bem aqui no teste local.
+    TRAEFIK_CMD=$(docker inspect "$TRAEFIK_CONTAINER" --format '{{join .Config.Cmd " "}}' 2>/dev/null || true)
+
+    RESOLVER_MATCH=$(echo "$TRAEFIK_CMD" | grep -oE -- '--certificatesresolvers\.[^.]+\.' | head -1 || true)
+    DETECTED_RESOLVER="${RESOLVER_MATCH#--certificatesresolvers.}"
+    DETECTED_RESOLVER="${DETECTED_RESOLVER%.}"
+
+    ENTRYPOINT_MATCH=$(echo "$TRAEFIK_CMD" | grep -oE -- '--entrypoints\.[^.]+\.address=:443' | head -1 || true)
+    DETECTED_ENTRYPOINT="${ENTRYPOINT_MATCH#--entrypoints.}"
+    DETECTED_ENTRYPOINT="${DETECTED_ENTRYPOINT%.address=:443}"
+
+    [ -n "$DETECTED_RESOLVER" ] && TRAEFIK_CERT_RESOLVER="$DETECTED_RESOLVER" && echo "    certResolver detectado: $TRAEFIK_CERT_RESOLVER"
+    [ -n "$DETECTED_ENTRYPOINT" ] && TRAEFIK_ENTRYPOINT="$DETECTED_ENTRYPOINT" && echo "    entrypoint HTTPS detectado: $TRAEFIK_ENTRYPOINT"
+  fi
+
+  if ! docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1; then
+    echo "    Não consegui detectar sozinho. Redes Docker disponíveis:"
+    docker network ls --format '      {{.Name}}'
+    read -r -p "    Nome da rede do Traefik: " TRAEFIK_NETWORK
+  fi
+
+  if ! docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1; then
+    echo "Rede '$TRAEFIK_NETWORK' ainda não existe. Confira o nome e rode de novo." >&2
+    exit 1
+  fi
+
+  # salva o que foi detectado/digitado pra nao perguntar de novo no proximo cliente
+  sed -i "s/^TRAEFIK_NETWORK=.*/TRAEFIK_NETWORK=$TRAEFIK_NETWORK/" "$GLOBAL_ENV"
+  sed -i "s/^TRAEFIK_CERT_RESOLVER=.*/TRAEFIK_CERT_RESOLVER=$TRAEFIK_CERT_RESOLVER/" "$GLOBAL_ENV"
+  sed -i "s/^TRAEFIK_ENTRYPOINT=.*/TRAEFIK_ENTRYPOINT=$TRAEFIK_ENTRYPOINT/" "$GLOBAL_ENV"
+  echo "    Config salva em infra/.env pros próximos clientes"
 fi
 
 # --- 1. DNS na Cloudflare ---

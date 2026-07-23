@@ -20,7 +20,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import ChecklistIcon from '@mui/icons-material/Checklist';
-import AgricultureIcon from '@mui/icons-material/Agriculture';
+import DirectionsCarFilledIcon from '@mui/icons-material/DirectionsCarFilled';
 import PeopleIcon from '@mui/icons-material/People';
 import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
 import AndroidIcon from '@mui/icons-material/Android';
@@ -43,7 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Execuções', path: '/executions', icon: <AssignmentIcon />, roles: ['admin', 'manager'] },
   { label: 'Relatórios', path: '/reports', icon: <BarChartIcon />, roles: ['admin', 'manager'] },
   { label: 'Templates', path: '/templates', icon: <ChecklistIcon />, roles: ['admin', 'manager'] },
-  { label: 'Veículos', path: '/vehicles', icon: <AgricultureIcon />, roles: ['admin', 'manager'] },
+  { label: 'Veículos', path: '/vehicles', icon: <DirectionsCarFilledIcon />, roles: ['admin', 'manager'] },
   { label: 'Usuários', path: '/users', icon: <PeopleIcon />, roles: ['admin', 'manager'] },
   { label: 'Baixar App', path: '/app-download', icon: <AndroidIcon />, roles: ['admin', 'manager'] },
   { label: 'Aparelhos', path: '/devices', icon: <PhoneIphoneIcon />, roles: ['admin'] },
