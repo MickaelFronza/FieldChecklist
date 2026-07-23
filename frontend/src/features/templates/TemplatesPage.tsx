@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import {
   Box,
   Button,
@@ -18,6 +19,13 @@ import { TemplateFormDialog, type TemplateFormValues } from './TemplateFormDialo
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { ChecklistTemplate } from '@/types/api';
+
+function getMutationErrorMessage(error: unknown): string {
+  if (isAxiosError<{ error?: string }>(error) && error.response?.data?.error) {
+    return error.response.data.error;
+  }
+  return 'Não foi possível salvar. Tente novamente.';
+}
 
 export function TemplatesPage() {
   const queryClient = useQueryClient();
@@ -47,7 +55,14 @@ export function TemplatesPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Templates de Checklist</Typography>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={() => setCreateOpen(true)}>
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          onClick={() => {
+            createMutation.reset();
+            setCreateOpen(true);
+          }}
+        >
           Novo Template
         </Button>
       </Box>
@@ -102,7 +117,11 @@ export function TemplatesPage() {
         title="Novo Template"
         submitLabel="Criar"
         submitting={createMutation.isPending}
-        onClose={() => setCreateOpen(false)}
+        errorMessage={createMutation.isError ? getMutationErrorMessage(createMutation.error) : undefined}
+        onClose={() => {
+          setCreateOpen(false);
+          createMutation.reset();
+        }}
         onSubmit={(values) =>
           createMutation.mutate({ name: values.name, vehicleType: values.vehicleType || undefined, items: values.items })
         }
@@ -113,6 +132,7 @@ export function TemplatesPage() {
         title={`Nova Versão — ${versioningTemplate?.name ?? ''}`}
         submitLabel="Salvar Nova Versão"
         submitting={versionMutation.isPending}
+        errorMessage={versionMutation.isError ? getMutationErrorMessage(versionMutation.error) : undefined}
         initialValues={
           versioningTemplate
             ? {
@@ -128,7 +148,10 @@ export function TemplatesPage() {
               }
             : undefined
         }
-        onClose={() => setVersioningTemplate(null)}
+        onClose={() => {
+          setVersioningTemplate(null);
+          versionMutation.reset();
+        }}
         onSubmit={(values) => {
           if (versioningTemplate) versionMutation.mutate({ id: versioningTemplate.id, values });
         }}

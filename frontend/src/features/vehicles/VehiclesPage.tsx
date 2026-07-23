@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
@@ -29,6 +31,13 @@ import { EmptyState } from '@/components/common/EmptyState';
 import type { User, Vehicle } from '@/types/api';
 
 type OperatorOption = Pick<User, 'id' | 'name'>;
+
+function getMutationErrorMessage(error: unknown): string {
+  if (isAxiosError<{ error?: string }>(error) && error.response?.data?.error) {
+    return error.response.data.error;
+  }
+  return 'Não foi possível salvar. Tente novamente.';
+}
 
 export function VehiclesPage() {
   const queryClient = useQueryClient();
@@ -84,6 +93,16 @@ export function VehiclesPage() {
     createMutation.mutate();
   };
 
+  const handleCloseCreateDialog = () => {
+    setDialogOpen(false);
+    createMutation.reset();
+  };
+
+  const handleCloseOperatorsDialog = () => {
+    setEditingVehicle(null);
+    operatorsMutation.reset();
+  };
+
   const handleSaveOperators = () => {
     if (!editingVehicle) return;
     operatorsMutation.mutate({
@@ -96,7 +115,14 @@ export function VehiclesPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Veículos</Typography>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={() => setDialogOpen(true)}>
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          onClick={() => {
+            createMutation.reset();
+            setDialogOpen(true);
+          }}
+        >
           Novo Veículo
         </Button>
       </Box>
@@ -155,10 +181,11 @@ export function VehiclesPage() {
         )}
       </Paper>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={dialogOpen} onClose={handleCloseCreateDialog} fullWidth maxWidth="xs">
         <Box component="form" onSubmit={handleSubmit}>
           <DialogTitle>Novo Veículo</DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            {createMutation.isError && <Alert severity="error">{getMutationErrorMessage(createMutation.error)}</Alert>}
             <TextField
               label="Código"
               placeholder="TRATOR-01"
@@ -192,7 +219,7 @@ export function VehiclesPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCloseCreateDialog}>Cancelar</Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending}>
               Salvar
             </Button>
@@ -200,9 +227,12 @@ export function VehiclesPage() {
         </Box>
       </Dialog>
 
-      <Dialog open={Boolean(editingVehicle)} onClose={() => setEditingVehicle(null)} fullWidth maxWidth="xs">
+      <Dialog open={Boolean(editingVehicle)} onClose={handleCloseOperatorsDialog} fullWidth maxWidth="xs">
         <DialogTitle>Operadores responsáveis — {editingVehicle?.name}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          {operatorsMutation.isError && (
+            <Alert severity="error">{getMutationErrorMessage(operatorsMutation.error)}</Alert>
+          )}
           <Autocomplete
             multiple
             options={operatorOptions}
@@ -214,7 +244,7 @@ export function VehiclesPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditingVehicle(null)}>Cancelar</Button>
+          <Button onClick={handleCloseOperatorsDialog}>Cancelar</Button>
           <Button variant="contained" onClick={handleSaveOperators} disabled={operatorsMutation.isPending}>
             Salvar
           </Button>

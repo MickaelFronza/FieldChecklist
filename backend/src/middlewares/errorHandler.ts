@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { UniqueConstraintError } from 'sequelize';
 import { ApiError } from '../utils/apiError';
 
 export function notFoundHandler(req: Request, res: Response): void {
@@ -15,6 +16,12 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
 
   if (err instanceof ZodError) {
     res.status(400).json({ error: 'Dados invalidos', details: err.issues });
+    return;
+  }
+
+  if (err instanceof UniqueConstraintError) {
+    const field = err.errors[0]?.path ?? 'campo';
+    res.status(409).json({ error: `Já existe um registro com esse ${field}` });
     return;
   }
 

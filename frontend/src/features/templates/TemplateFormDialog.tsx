@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -37,6 +38,7 @@ interface TemplateFormDialogProps {
   submitLabel: string;
   initialValues?: TemplateFormValues;
   submitting: boolean;
+  errorMessage?: string;
   onClose: () => void;
   onSubmit: (values: TemplateFormValues) => void;
 }
@@ -47,6 +49,7 @@ export function TemplateFormDialog({
   submitLabel,
   initialValues,
   submitting,
+  errorMessage,
   onClose,
   onSubmit,
 }: TemplateFormDialogProps) {
@@ -81,6 +84,7 @@ export function TemplateFormDialog({
       <Box component="form" onSubmit={handleSubmit}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
           <TextField label="Nome do Template" required value={name} onChange={(e) => setName(e.target.value)} />
           <TextField
             label="Tipo de Veículo"

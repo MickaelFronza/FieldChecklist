@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -31,6 +33,13 @@ const ROLE_LABELS: Record<UserRole, string> = {
   manager: 'Gestor',
   operator: 'Operador',
 };
+
+function getCreateUserErrorMessage(error: unknown): string {
+  if (isAxiosError<{ error?: string }>(error) && error.response?.data?.error) {
+    return error.response.data.error;
+  }
+  return 'Não foi possível criar o usuário. Tente novamente.';
+}
 
 const EMPTY_FORM = {
   name: '',
@@ -74,6 +83,11 @@ export function UsersPage() {
     createMutation.mutate(form);
   };
 
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    createMutation.reset();
+  };
+
   const isFormValid =
     form.name.trim().length > 0 &&
     (form.role === 'operator' ? form.pin.length === 4 : form.email.length > 0 && form.password.length >= 6);
@@ -82,7 +96,14 @@ export function UsersPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Usuários</Typography>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={() => setDialogOpen(true)}>
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          onClick={() => {
+            createMutation.reset();
+            setDialogOpen(true);
+          }}
+        >
           Novo Usuário
         </Button>
       </Box>
@@ -145,10 +166,11 @@ export function UsersPage() {
         )}
       </Paper>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="xs">
         <Box component="form" onSubmit={handleSubmit}>
           <DialogTitle>Novo Usuário</DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            {createMutation.isError && <Alert severity="error">{getCreateUserErrorMessage(createMutation.error)}</Alert>}
             <TextField
               label="Nome"
               required
@@ -202,7 +224,7 @@ export function UsersPage() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCloseDialog}>Cancelar</Button>
             <Button type="submit" variant="contained" disabled={!isFormValid || createMutation.isPending}>
               Salvar
             </Button>
