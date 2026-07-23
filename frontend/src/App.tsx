@@ -9,6 +9,7 @@ import { TemplatesPage } from '@/features/templates/TemplatesPage';
 import { MachinesPage } from '@/features/machines/MachinesPage';
 import { UsersPage } from '@/features/users/UsersPage';
 import { DeviceMonitorPage } from '@/features/devices/DeviceMonitorPage';
+import { AppDownloadPage } from '@/features/appDownload/AppDownloadPage';
 
 export function App() {
   return (
@@ -26,6 +27,7 @@ export function App() {
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/machines" element={<MachinesPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/app-download" element={<AppDownloadPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>

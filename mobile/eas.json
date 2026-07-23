@@ -1,0 +1,24 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "production-example": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://exemplo-cliente.com/api/v1",
+        "APP_NAME": "Checklist Exemplo Cliente",
+        "APP_SLUG": "checklist-exemplo-cliente",
+        "APP_PACKAGE": "com.fieldcheck.exemplocliente"
+      }
+    }
+  }
+}
