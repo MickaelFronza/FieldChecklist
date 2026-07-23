@@ -24,7 +24,8 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
-import { createVehicle, fetchVehicles, updateVehicle, updateVehicleOperators } from './api';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { createVehicle, deleteVehicle, fetchVehicles, updateVehicle, updateVehicleOperators } from './api';
 import { fetchUsers } from '@/features/users/api';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -50,10 +51,16 @@ export function VehiclesPage() {
   const [formOperators, setFormOperators] = useState<OperatorOption[]>([]);
 
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [editForm, setEditForm] = useState({ code: '', name: '', type: '' });
   const [editOperators, setEditOperators] = useState<OperatorOption[]>([]);
 
   useEffect(() => {
     setEditOperators(editingVehicle?.operators ?? []);
+    setEditForm({
+      code: editingVehicle?.code ?? '',
+      name: editingVehicle?.name ?? '',
+      type: editingVehicle?.type ?? '',
+    });
   }, [editingVehicle]);
 
   const createMutation = useMutation({
@@ -79,13 +86,24 @@ export function VehiclesPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
   });
 
-  const operatorsMutation = useMutation({
-    mutationFn: ({ vehicleId, operatorIds }: { vehicleId: string; operatorIds: string[] }) =>
-      updateVehicleOperators(vehicleId, operatorIds),
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingVehicle) return;
+      await updateVehicle(editingVehicle.id, editForm);
+      await updateVehicleOperators(
+        editingVehicle.id,
+        editOperators.map((operator) => operator.id),
+      );
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setEditingVehicle(null);
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteVehicle,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
   });
 
   const handleSubmit = (event: FormEvent) => {
@@ -98,18 +116,23 @@ export function VehiclesPage() {
     createMutation.reset();
   };
 
-  const handleCloseOperatorsDialog = () => {
+  const handleCloseEditDialog = () => {
     setEditingVehicle(null);
-    operatorsMutation.reset();
+    editMutation.reset();
   };
 
-  const handleSaveOperators = () => {
-    if (!editingVehicle) return;
-    operatorsMutation.mutate({
-      vehicleId: editingVehicle.id,
-      operatorIds: editOperators.map((operator) => operator.id),
-    });
+  const handleEditSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    editMutation.mutate();
   };
+
+  const handleDelete = (vehicle: Vehicle) => {
+    if (!window.confirm(`Excluir o veículo "${vehicle.name}"? Isso não pode ser desfeito.`)) return;
+    deleteMutation.mutate(vehicle.id);
+  };
+
+  const isEditFormValid =
+    editForm.code.trim().length > 0 && editForm.name.trim().length > 0 && editForm.type.trim().length > 0;
 
   return (
     <Box>
@@ -173,6 +196,9 @@ export function VehiclesPage() {
                     <IconButton size="small" onClick={() => setEditingVehicle(vehicle)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
+                    <IconButton size="small" onClick={() => handleDelete(vehicle)} disabled={deleteMutation.isPending}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -227,28 +253,46 @@ export function VehiclesPage() {
         </Box>
       </Dialog>
 
-      <Dialog open={Boolean(editingVehicle)} onClose={handleCloseOperatorsDialog} fullWidth maxWidth="xs">
-        <DialogTitle>Operadores responsáveis — {editingVehicle?.name}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-          {operatorsMutation.isError && (
-            <Alert severity="error">{getMutationErrorMessage(operatorsMutation.error)}</Alert>
-          )}
-          <Autocomplete
-            multiple
-            options={operatorOptions}
-            getOptionLabel={(option) => option.name}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            value={editOperators}
-            onChange={(_event, value) => setEditOperators(value)}
-            renderInput={(params) => <TextField {...params} label="Operadores responsáveis" />}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseOperatorsDialog}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSaveOperators} disabled={operatorsMutation.isPending}>
-            Salvar
-          </Button>
-        </DialogActions>
+      <Dialog open={Boolean(editingVehicle)} onClose={handleCloseEditDialog} fullWidth maxWidth="xs">
+        <Box component="form" onSubmit={handleEditSubmit}>
+          <DialogTitle>Editar Veículo — {editingVehicle?.name}</DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            {editMutation.isError && <Alert severity="error">{getMutationErrorMessage(editMutation.error)}</Alert>}
+            <TextField
+              label="Código"
+              required
+              value={editForm.code}
+              onChange={(event) => setEditForm({ ...editForm, code: event.target.value })}
+            />
+            <TextField
+              label="Nome"
+              required
+              value={editForm.name}
+              onChange={(event) => setEditForm({ ...editForm, name: event.target.value })}
+            />
+            <TextField
+              label="Tipo"
+              required
+              value={editForm.type}
+              onChange={(event) => setEditForm({ ...editForm, type: event.target.value })}
+            />
+            <Autocomplete
+              multiple
+              options={operatorOptions}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              value={editOperators}
+              onChange={(_event, value) => setEditOperators(value)}
+              renderInput={(params) => <TextField {...params} label="Operadores responsáveis" />}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseEditDialog}>Cancelar</Button>
+            <Button type="submit" variant="contained" disabled={!isEditFormValid || editMutation.isPending}>
+              Salvar
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </Box>
   );

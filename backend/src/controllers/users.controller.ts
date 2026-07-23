@@ -95,6 +95,14 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findByPk(req.params.id);
+  if (!user || user.role === 'admin') throw new ApiError(404, 'Usuario nao encontrado');
+
+  await user.destroy();
+  res.status(204).send();
+});
+
 export const listUserDevices = asyncHandler(async (req: Request, res: Response) => {
   const devices = await UserDevice.findAll({
     where: { userId: req.params.id },

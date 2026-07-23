@@ -62,6 +62,20 @@ export const updateVehicle = asyncHandler(async (req: Request, res: Response) =>
   res.json(vehicle);
 });
 
+export const deleteVehicle = asyncHandler(async (req: Request, res: Response) => {
+  const vehicle = await Vehicle.findByPk(req.params.id);
+  if (!vehicle) throw new ApiError(404, 'Veiculo nao encontrado');
+
+  // vehicle_operators e' so a associacao de "responsavel", sem valor
+  // historico proprio - apagar junto e' seguro (diferente de
+  // checklist_executions, que fica protegido pela FK sem onDelete e vira um
+  // 409 claro via errorHandler se o veiculo tiver historico)
+  await VehicleOperator.destroy({ where: { vehicleId: vehicle.id } });
+  await vehicle.destroy();
+  await redisClient.del(VEHICLES_CACHE_KEY);
+  res.status(204).send();
+});
+
 const updateVehicleOperatorsSchema = z.object({
   operatorIds: z.array(z.string().uuid()),
 });

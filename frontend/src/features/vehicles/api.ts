@@ -30,3 +30,7 @@ export async function updateVehicleOperators(vehicleId: string, operatorIds: str
   const { data } = await apiClient.put<Vehicle>(`/vehicles/${vehicleId}/operators`, { operatorIds });
   return data;
 }
+
+export async function deleteVehicle(id: string): Promise<void> {
+  await apiClient.delete(`/vehicles/${id}`);
+}

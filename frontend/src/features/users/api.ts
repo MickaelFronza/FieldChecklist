@@ -36,6 +36,10 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
   return data;
 }
 
+export async function deleteUser(id: string): Promise<void> {
+  await apiClient.delete(`/users/${id}`);
+}
+
 export async function fetchUserDevices(userId: string): Promise<UserDevice[]> {
   const { data } = await apiClient.get<UserDevice[]>(`/users/${userId}/devices`);
   return data;
