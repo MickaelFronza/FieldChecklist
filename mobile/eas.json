@@ -17,7 +17,6 @@
         "EXPO_PUBLIC_API_URL": "https://SUBSTITUA-PELO-DOMINIO-DO-CLIENTE.example/api/v1",
         "EXPO_PUBLIC_SOCKET_URL": "https://SUBSTITUA-PELO-DOMINIO-DO-CLIENTE.example",
         "APP_NAME": "Checklist Exemplo Cliente",
-        "APP_SLUG": "checklist-exemplo-cliente",
         "APP_PACKAGE": "com.fieldcheck.exemplocliente"
       }
     }

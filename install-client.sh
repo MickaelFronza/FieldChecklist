@@ -84,6 +84,11 @@ if [ -z "${SERVER_PUBLIC_IP:-}" ]; then
   echo "    IP detectado: $SERVER_PUBLIC_IP"
   sed -i "s/^SERVER_PUBLIC_IP=.*/SERVER_PUBLIC_IP=$SERVER_PUBLIC_IP/" "$GLOBAL_ENV"
 fi
+if [ -z "${EXPO_TOKEN:-}" ]; then
+  read -rs -p "Access Token do Expo/EAS (Account Settings -> Access Tokens em expo.dev, não aparece ao digitar): " EXPO_TOKEN
+  echo
+  sed -i "s/^EXPO_TOKEN=.*/EXPO_TOKEN=$EXPO_TOKEN/" "$GLOBAL_ENV"
+fi
 
 TRAEFIK_NETWORK="${TRAEFIK_NETWORK:-traefik-public}"
 TRAEFIK_CERT_RESOLVER="${TRAEFIK_CERT_RESOLVER:-cloudflare}"
@@ -269,14 +274,64 @@ echo "==> Rodando migrations e seed inicial (cria o usuário admin)"
 dc run --rm backend npm run migrate
 dc run --rm backend npm run seed
 
-echo "==> Subindo backend, worker e frontend"
-dc up -d --build backend worker frontend
+echo "==> Subindo backend e worker"
+dc up -d --build backend worker
 
 echo "==> Aguardando o backend responder"
 for i in $(seq 1 30); do
   dc exec -T backend node -e "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))" && break
   sleep 2
 done
+
+# --- 3. APK do app mobile (build no EAS, específico deste cliente) ---
+# o app mobile trava a URL da API no próprio instalável (EXPO_PUBLIC_API_URL),
+# então cada cliente precisa do seu build - não dá pra reaproveitar o de
+# outro. Roda ANTES do frontend (que precisa da URL do APK como build arg),
+# mas DEPOIS de backend/worker já estarem no ar (não trava a stack web
+# esperando isso). A fila gratuita do EAS pode levar bem mais que alguns
+# minutos - é esperado.
+MOBILE_DIR="$REPO_ROOT/mobile"
+if [ ! -d "$MOBILE_DIR/node_modules" ]; then
+  echo "==> Instalando dependências do app mobile (primeira vez neste servidor)"
+  npm install --prefix "$MOBILE_DIR"
+fi
+
+PACKAGE_SLUG=$(echo "$SLUG" | tr -d '-')
+case "$PACKAGE_SLUG" in
+  [0-9]*) PACKAGE_SLUG="c$PACKAGE_SLUG" ;;
+esac
+APP_PACKAGE="com.fieldcheck.$PACKAGE_SLUG"
+APP_NAME="Checklist $(echo "$SLUG" | sed -E 's/(^|-)([a-z])/\1\U\2/g; s/-/ /g')"
+
+echo "==> Gerando build do APK pro cliente '$SLUG' (perfil EAS: $SLUG, pacote: $APP_PACKAGE)"
+echo "    Isso pode demorar bastante (fila gratuita do EAS) - aguardando..."
+node "$REPO_ROOT/infra/lib/eas-add-profile.js" "$SLUG" "https://$BACKEND_DOMAIN/api/v1" "https://$BACKEND_DOMAIN" "$APP_NAME" "$APP_PACKAGE"
+
+APK_DOWNLOAD_URL=""
+EAS_BUILD_JSON="$CLIENT_DIR/eas-build.json"
+EAS_BUILD_LOG="$CLIENT_DIR/eas-build.log"
+if (cd "$MOBILE_DIR" && EXPO_TOKEN="$EXPO_TOKEN" npx eas-cli build --profile "$SLUG" --platform android --non-interactive --wait --json >"$EAS_BUILD_JSON" 2>"$EAS_BUILD_LOG"); then
+  APK_DOWNLOAD_URL=$(node "$REPO_ROOT/infra/lib/eas-extract-apk-url.js" "$EAS_BUILD_JSON" 2>>"$EAS_BUILD_LOG") \
+    || echo "    aviso: build terminou mas não consegui extrair a URL do APK - confira $EAS_BUILD_LOG" >&2
+else
+  echo "    aviso: build do EAS falhou ao rodar - confira $EAS_BUILD_LOG" >&2
+fi
+
+# eas.json e' compartilhado por todos os clientes (checkout unico no
+# servidor) - o profile gerado acima foi so pra este build, restaura pra nao
+# ir acumulando um profile por cliente instalado no arquivo versionado
+git -C "$REPO_ROOT" checkout -- mobile/eas.json 2>/dev/null || true
+
+if [ -n "$APK_DOWNLOAD_URL" ]; then
+  sed -i "s|^APK_DOWNLOAD_URL=.*|APK_DOWNLOAD_URL=$APK_DOWNLOAD_URL|" "$CLIENT_DIR/.env"
+  echo "    APK pronto: $APK_DOWNLOAD_URL"
+else
+  echo "    Instalação segue sem link de APK - ajuste APK_DOWNLOAD_URL em $CLIENT_DIR/.env manualmente quando tiver um build, depois rode: "
+  echo "    docker compose -p $SLUG -f $CLIENT_DIR/docker-compose.yml up -d --build frontend"
+fi
+
+echo "==> Subindo frontend"
+dc up -d --build frontend
 
 echo ""
 echo "==> Cliente '$SLUG' instalado"

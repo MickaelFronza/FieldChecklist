@@ -1,11 +1,15 @@
-// Dynamic config (em vez de app.json estatico) pra permitir nome/slug/pacote
-// por build de cliente via env vars do EAS Build (ver eas.json) - cada
-// cliente gera seu proprio instalavel com a URL do servidor travada em
+// Dynamic config (em vez de app.json estatico) pra permitir nome/pacote por
+// build de cliente via env vars do EAS Build (ver eas.json) - cada cliente
+// gera seu proprio instalavel com a URL do servidor travada em
 // EXPO_PUBLIC_API_URL, sem nenhuma configuracao possivel depois de instalado.
+// slug/owner/projectId ficam fixos (nao variam por cliente) - todos os
+// clientes sao builds do MESMO projeto EAS, o EAS exige que o slug bata com
+// o do projeto vinculado a esse projectId (https://expo.fyi/eas-project-id).
 module.exports = {
   expo: {
     name: process.env.APP_NAME || 'Field Checklist',
-    slug: process.env.APP_SLUG || 'field-checklist',
+    slug: 'fieldchack',
+    owner: 'hfronza-org',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -52,5 +56,10 @@ module.exports = {
         },
       ],
     ],
+    extra: {
+      eas: {
+        projectId: '38b10274-27c9-4463-9894-52169efb163a',
+      },
+    },
   },
 };
