@@ -8,6 +8,7 @@ import { getDatabase } from './src/db/database';
 import { initNetworkListener } from './src/lib/network';
 import { registerBackgroundSync, initForegroundSyncLoop } from './src/services/backgroundSync';
 import { loadPersistedSession, useAuthStore } from './src/stores/authStore';
+import { refreshShiftWindows } from './src/lib/shift';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
 
@@ -34,6 +35,7 @@ export default function App() {
       const unsubscribeNetwork = initNetworkListener();
       const unsubscribeSync = initForegroundSyncLoop();
       registerBackgroundSync().catch(() => {});
+      refreshShiftWindows().catch(() => {});
 
       setIsReady(true);
 

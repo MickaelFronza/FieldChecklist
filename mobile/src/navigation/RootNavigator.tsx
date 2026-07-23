@@ -2,14 +2,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../stores/authStore';
 import { LoginScreen } from '../screens/LoginScreen';
-import { MachineSelectionScreen } from '../screens/MachineSelectionScreen';
+import { VehicleSelectionScreen } from '../screens/VehicleSelectionScreen';
 import { ChecklistScreen } from '../screens/ChecklistScreen';
 import { SummaryScreen } from '../screens/SummaryScreen';
 import { SyncScreen } from '../screens/SyncScreen';
 
 export type RootStackParamList = {
   Login: undefined;
-  MachineSelection: undefined;
+  VehicleSelection: undefined;
   Checklist: undefined;
   Summary: undefined;
   Sync: undefined;
@@ -27,7 +27,7 @@ export function RootNavigator() {
           <Stack.Screen name="Login" component={LoginScreen} />
         ) : (
           <>
-            <Stack.Screen name="MachineSelection" component={MachineSelectionScreen} />
+            <Stack.Screen name="VehicleSelection" component={VehicleSelectionScreen} />
             <Stack.Screen name="Checklist" component={ChecklistScreen} />
             <Stack.Screen name="Summary" component={SummaryScreen} />
             <Stack.Screen name="Sync" component={SyncScreen} />

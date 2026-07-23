@@ -1,17 +1,17 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 import type { ChecklistTemplate } from './ChecklistTemplate';
-import type { Machine } from './Machine';
+import type { Vehicle } from './Vehicle';
 import type { User } from './User';
 import type { ExecutionItem } from './ExecutionItem';
 
-export type Shift = 'morning' | 'afternoon' | 'night';
+export type Shift = 'manha' | 'tarde' | 'noite';
 export type ExecutionStatus = 'in_progress' | 'completed' | 'incomplete';
 
 export interface ChecklistExecutionAttributes {
   id: string;
   templateId: string;
-  machineId: string;
+  vehicleId: string;
   operatorId: string;
   shift: Shift;
   status: ExecutionStatus;
@@ -37,7 +37,7 @@ export class ChecklistExecution
 {
   declare id: string;
   declare templateId: string;
-  declare machineId: string;
+  declare vehicleId: string;
   declare operatorId: string;
   declare shift: Shift;
   declare status: ExecutionStatus;
@@ -52,7 +52,7 @@ export class ChecklistExecution
   declare updatedAt: Date;
 
   declare template?: ChecklistTemplate;
-  declare machine?: Machine;
+  declare vehicle?: Vehicle;
   declare operator?: User;
   declare items?: ExecutionItem[];
 }
@@ -69,10 +69,10 @@ ChecklistExecution.init(
       allowNull: false,
       field: 'template_id',
     },
-    machineId: {
+    vehicleId: {
       type: DataTypes.UUID,
       allowNull: false,
-      field: 'machine_id',
+      field: 'vehicle_id',
     },
     operatorId: {
       type: DataTypes.UUID,
@@ -80,7 +80,7 @@ ChecklistExecution.init(
       field: 'operator_id',
     },
     shift: {
-      type: DataTypes.ENUM('morning', 'afternoon', 'night'),
+      type: DataTypes.ENUM('manha', 'tarde', 'noite'),
       allowNull: false,
     },
     status: {

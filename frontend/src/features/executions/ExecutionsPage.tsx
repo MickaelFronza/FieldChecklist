@@ -14,9 +14,10 @@ import {
   Typography,
 } from '@mui/material';
 import { fetchExecutions } from './api';
-import { fetchMachines } from '@/features/machines/api';
+import { fetchVehicles } from '@/features/vehicles/api';
 import { fetchUsers } from '@/features/users/api';
 import { useReportFiltersStore } from '@/stores/reportFiltersStore';
+import { SHIFT_LABEL } from '@/lib/shift';
 import { ExecutionStatusChip } from '@/components/common/StatusChip';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -29,7 +30,7 @@ export function ExecutionsPage() {
     queryFn: () => fetchExecutions(executionFilters),
   });
 
-  const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: fetchMachines });
+  const { data: vehicles } = useQuery({ queryKey: ['vehicles'], queryFn: fetchVehicles });
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: fetchUsers });
   const operators = users?.filter((user) => user.role === 'operator') ?? [];
 
@@ -49,17 +50,17 @@ export function ExecutionsPage() {
           onChange={(e) => setExecutionFilters({ date: e.target.value })}
         />
         <TextField
-          label="Máquina"
+          label="Veículo"
           select
           size="small"
           sx={{ minWidth: 180 }}
-          value={executionFilters.machineId}
-          onChange={(e) => setExecutionFilters({ machineId: e.target.value })}
+          value={executionFilters.vehicleId}
+          onChange={(e) => setExecutionFilters({ vehicleId: e.target.value })}
         >
-          <MenuItem value="">Todas</MenuItem>
-          {machines?.map((machine) => (
-            <MenuItem key={machine.id} value={machine.id}>
-              {machine.name}
+          <MenuItem value="">Todos</MenuItem>
+          {vehicles?.map((vehicle) => (
+            <MenuItem key={vehicle.id} value={vehicle.id}>
+              {vehicle.name}
             </MenuItem>
           ))}
         </TextField>
@@ -102,7 +103,7 @@ export function ExecutionsPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Máquina</TableCell>
+                <TableCell>Veículo</TableCell>
                 <TableCell>Operador</TableCell>
                 <TableCell>Turno</TableCell>
                 <TableCell>Status</TableCell>
@@ -114,11 +115,11 @@ export function ExecutionsPage() {
                 <TableRow key={execution.id} hover>
                   <TableCell>
                     <Link component={RouterLink} to={`/executions/${execution.id}`} sx={{ fontWeight: 600 }}>
-                      {execution.machine?.name ?? execution.machineId}
+                      {execution.vehicle?.name ?? execution.vehicleId}
                     </Link>
                   </TableCell>
                   <TableCell>{execution.operator?.name ?? execution.operatorId}</TableCell>
-                  <TableCell>{execution.shift}</TableCell>
+                  <TableCell>{SHIFT_LABEL[execution.shift]}</TableCell>
                   <TableCell>
                     <ExecutionStatusChip status={execution.status} />
                   </TableCell>

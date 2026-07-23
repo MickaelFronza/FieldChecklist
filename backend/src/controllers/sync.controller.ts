@@ -14,9 +14,9 @@ const batchSchema = z.object({
   execution: z.object({
     id: z.string().uuid(),
     templateId: z.string().uuid(),
-    machineId: z.string().uuid(),
+    vehicleId: z.string().uuid(),
     operatorId: z.string().uuid(),
-    shift: z.enum(['morning', 'afternoon', 'night']),
+    shift: z.enum(['manha', 'tarde', 'noite']),
     status: z.enum(['in_progress', 'completed', 'incomplete']),
     startedAt: z.string(),
     completedAt: z.string().nullable().optional(),

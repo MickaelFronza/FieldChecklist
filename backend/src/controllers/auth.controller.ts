@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { User, UserDevice } from '../models';
+import { AppSettings, User, UserDevice } from '../models';
 import {
   signAccessToken,
   signRefreshToken,
@@ -33,6 +33,18 @@ async function authorizeDevice(user: User, deviceId: string): Promise<void> {
   const activeDeviceCount = await UserDevice.count({ where: { userId: user.id, active: true } });
   if (activeDeviceCount >= user.maxDevices) {
     throw new ApiError(403, 'Limite de aparelhos atingido para este usuário. Contate o administrador.');
+  }
+
+  // limite adicional, tenant-wide (contrato): null = sem limite, preserva o
+  // comportamento atual por padrao. So roda aqui - apos os checks acima -
+  // entao nunca bloqueia um aparelho ja cadastrado e ativo, so a entrada de
+  // um aparelho genuinamente novo (ex.: o 11o device distinto da empresa)
+  const settings = await AppSettings.findByPk(1);
+  if (settings?.maxTotalDevices != null) {
+    const totalActiveDevices = await UserDevice.count({ where: { active: true } });
+    if (totalActiveDevices >= settings.maxTotalDevices) {
+      throw new ApiError(403, 'Limite total de aparelhos da empresa atingido. Contate o administrador.');
+    }
   }
 
   const now = new Date();

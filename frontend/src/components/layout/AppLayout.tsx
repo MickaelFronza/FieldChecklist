@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import ChecklistIcon from '@mui/icons-material/Checklist';
@@ -38,10 +39,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon />, roles: ['admin', 'manager'] },
   { label: 'Execuções', path: '/executions', icon: <AssignmentIcon />, roles: ['admin', 'manager'] },
   { label: 'Relatórios', path: '/reports', icon: <BarChartIcon />, roles: ['admin', 'manager'] },
   { label: 'Templates', path: '/templates', icon: <ChecklistIcon />, roles: ['admin', 'manager'] },
-  { label: 'Máquinas', path: '/machines', icon: <AgricultureIcon />, roles: ['admin', 'manager'] },
+  { label: 'Veículos', path: '/vehicles', icon: <AgricultureIcon />, roles: ['admin', 'manager'] },
   { label: 'Usuários', path: '/users', icon: <PeopleIcon />, roles: ['admin', 'manager'] },
   { label: 'Baixar App', path: '/app-download', icon: <AndroidIcon />, roles: ['admin', 'manager'] },
   { label: 'Aparelhos', path: '/devices', icon: <PhoneIphoneIcon />, roles: ['admin'] },

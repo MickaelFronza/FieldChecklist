@@ -60,7 +60,7 @@ async function createItems(templateId: string, items: z.infer<typeof itemSchema>
 
 const createTemplateSchema = z.object({
   name: z.string().min(1),
-  machineType: z.string().optional(),
+  vehicleType: z.string().optional(),
   items: z.array(itemSchema).min(1),
 });
 
@@ -69,7 +69,7 @@ export const createTemplate = asyncHandler(async (req: Request, res: Response) =
 
   const template = await ChecklistTemplate.create({
     name: data.name,
-    machineType: data.machineType ?? null,
+    vehicleType: data.vehicleType ?? null,
     createdBy: req.user?.sub ?? null,
   });
 
@@ -97,7 +97,7 @@ export const updateTemplate = asyncHandler(async (req: Request, res: Response) =
     // template ao inves de editar/apagar os itens existentes.
     const newVersion = await ChecklistTemplate.create({
       name: data.name ?? template.name,
-      machineType: template.machineType,
+      vehicleType: template.vehicleType,
       version: template.version + 1,
       createdBy: req.user?.sub ?? null,
     });

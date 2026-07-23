@@ -62,7 +62,7 @@ export function TemplatesPage() {
             <TableHead>
               <TableRow>
                 <TableCell>Nome</TableCell>
-                <TableCell>Tipo de Máquina</TableCell>
+                <TableCell>Tipo de Veículo</TableCell>
                 <TableCell>Versão</TableCell>
                 <TableCell>Itens</TableCell>
                 <TableCell>Status</TableCell>
@@ -73,7 +73,7 @@ export function TemplatesPage() {
               {templates?.map((template) => (
                 <TableRow key={template.id} hover>
                   <TableCell sx={{ fontWeight: 600 }}>{template.name}</TableCell>
-                  <TableCell>{template.machineType ?? 'Todas'}</TableCell>
+                  <TableCell>{template.vehicleType ?? 'Todos'}</TableCell>
                   <TableCell>v{template.version}</TableCell>
                   <TableCell>{template.items?.length ?? 0}</TableCell>
                   <TableCell>
@@ -104,7 +104,7 @@ export function TemplatesPage() {
         submitting={createMutation.isPending}
         onClose={() => setCreateOpen(false)}
         onSubmit={(values) =>
-          createMutation.mutate({ name: values.name, machineType: values.machineType || undefined, items: values.items })
+          createMutation.mutate({ name: values.name, vehicleType: values.vehicleType || undefined, items: values.items })
         }
       />
 
@@ -117,7 +117,7 @@ export function TemplatesPage() {
           versioningTemplate
             ? {
                 name: versioningTemplate.name,
-                machineType: versioningTemplate.machineType ?? '',
+                vehicleType: versioningTemplate.vehicleType ?? '',
                 items: (versioningTemplate.items ?? []).map((item) => ({
                   title: item.title,
                   description: item.description ?? '',

@@ -21,7 +21,7 @@ export interface UserDevice {
   lastSeenAt: string;
 }
 
-export interface Machine {
+export interface Vehicle {
   id: string;
   code: string;
   name: string;
@@ -29,6 +29,7 @@ export interface Machine {
   active: boolean;
   createdAt?: string;
   updatedAt?: string;
+  operators?: Pick<User, 'id' | 'name'>[];
 }
 
 export interface TemplateItem {
@@ -45,7 +46,7 @@ export interface TemplateItem {
 export interface ChecklistTemplate {
   id: string;
   name: string;
-  machineType: string | null;
+  vehicleType: string | null;
   version: number;
   active: boolean;
   createdBy: string | null;
@@ -54,7 +55,7 @@ export interface ChecklistTemplate {
   items?: TemplateItem[];
 }
 
-export type Shift = 'morning' | 'afternoon' | 'night';
+export type Shift = 'manha' | 'tarde' | 'noite';
 export type ExecutionStatus = 'in_progress' | 'completed' | 'incomplete';
 export type ExecutionItemStatus = 'ok' | 'non_conformant' | 'not_applicable' | 'pending';
 
@@ -75,7 +76,7 @@ export interface ExecutionItem {
 export interface ChecklistExecution {
   id: string;
   templateId: string;
-  machineId: string;
+  vehicleId: string;
   operatorId: string;
   shift: Shift;
   status: ExecutionStatus;
@@ -86,7 +87,7 @@ export interface ChecklistExecution {
   appVersion: string;
   startedLat: string | null;
   startedLng: string | null;
-  machine?: Machine;
+  vehicle?: Vehicle;
   operator?: Pick<User, 'id' | 'name'>;
   items?: ExecutionItem[];
 }
@@ -105,6 +106,25 @@ export interface OperatorReport {
   executions: ChecklistExecution[];
 }
 
+export type OperatorTodayStatus = 'not_started' | 'in_progress' | 'completed';
+
+export interface OperatorStatusToday {
+  operatorId: string;
+  name: string;
+  status: OperatorTodayStatus;
+  vehicleName: string | null;
+  lastStartedAt: string | null;
+}
+
+export interface OperatorStatusReport {
+  date: string;
+  totalOperators: number;
+  completed: number;
+  inProgress: number;
+  notStarted: number;
+  operators: OperatorStatusToday[];
+}
+
 export interface DeviceMonitorEntry {
   id: string;
   deviceId: string;
@@ -112,4 +132,11 @@ export interface DeviceMonitorEntry {
   lastSeenAt: string;
   user: Pick<User, 'id' | 'name' | 'role'>;
   lastLocation: { lat: string; lng: string; at: string } | null;
+}
+
+export interface AppSettings {
+  maxTotalDevices: number | null;
+  morningStartHour: number;
+  afternoonStartHour: number;
+  nightStartHour: number;
 }

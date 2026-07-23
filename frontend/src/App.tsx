@@ -2,11 +2,12 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ExecutionsPage } from '@/features/executions/ExecutionsPage';
 import { ExecutionDetailPage } from '@/features/executions/ExecutionDetailPage';
 import { ReportsPage } from '@/features/reports/ReportsPage';
 import { TemplatesPage } from '@/features/templates/TemplatesPage';
-import { MachinesPage } from '@/features/machines/MachinesPage';
+import { VehiclesPage } from '@/features/vehicles/VehiclesPage';
 import { UsersPage } from '@/features/users/UsersPage';
 import { DeviceMonitorPage } from '@/features/devices/DeviceMonitorPage';
 import { AppDownloadPage } from '@/features/appDownload/AppDownloadPage';
@@ -18,14 +19,15 @@ export function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/executions" replace />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/executions" element={<ExecutionsPage />} />
           <Route path="/executions/:id" element={<ExecutionDetailPage />} />
           <Route path="/reports" element={<ReportsPage />} />
 
           <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
             <Route path="/templates" element={<TemplatesPage />} />
-            <Route path="/machines" element={<MachinesPage />} />
+            <Route path="/vehicles" element={<VehiclesPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/app-download" element={<AppDownloadPage />} />
           </Route>
@@ -36,7 +38,7 @@ export function App() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/executions" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

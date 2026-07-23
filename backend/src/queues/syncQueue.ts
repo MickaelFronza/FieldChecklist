@@ -21,7 +21,7 @@ export interface SyncBatchJobData {
   execution: {
     id: string;
     templateId: string;
-    machineId: string;
+    vehicleId: string;
     operatorId: string;
     shift: Shift;
     status: ExecutionStatus;
@@ -43,7 +43,7 @@ syncQueue.process(async (job) => {
     defaults: {
       id: execution.id,
       templateId: execution.templateId,
-      machineId: execution.machineId,
+      vehicleId: execution.vehicleId,
       operatorId: execution.operatorId,
       shift: execution.shift,
       status: execution.status,

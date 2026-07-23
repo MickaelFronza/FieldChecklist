@@ -3,7 +3,7 @@ import type { ChecklistExecution } from '@/types/api';
 
 export interface ExecutionFilters {
   date?: string;
-  machineId?: string;
+  vehicleId?: string;
   operatorId?: string;
   status?: string;
 }

@@ -46,7 +46,7 @@ export function SyncScreen({ navigation }: Props) {
 
   const handleNewChecklist = () => {
     reset();
-    navigation.reset({ index: 0, routes: [{ name: 'MachineSelection' }] });
+    navigation.reset({ index: 0, routes: [{ name: 'VehicleSelection' }] });
   };
 
   return (

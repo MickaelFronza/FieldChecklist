@@ -13,7 +13,10 @@ function required(name: string): string {
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3000),
-  corsOrigin: process.env.CORS_ORIGIN ?? '*',
+  // aceita uma lista separada por virgula (ex.: dev local + container do
+  // frontend rodando ao mesmo tempo) - um unico valor continua funcionando
+  // igual antes, so vira um array de 1 posicao
+  corsOrigin: (process.env.CORS_ORIGIN ?? '*').split(',').map((origin) => origin.trim()),
 
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '8h',
@@ -36,6 +39,11 @@ export const env = {
     port: Number(process.env.REDIS_PORT ?? 6379),
     password: process.env.REDIS_PASSWORD || undefined,
   },
+
+  // console web do MinIO, so acessivel dentro da rede interna do compose -
+  // proxied pelo backend (ver app.ts) pra nunca precisar expor a porta 9001
+  // pra internet
+  minioConsoleUrl: process.env.MINIO_CONSOLE_URL ?? 'http://minio:9001',
 
   s3: {
     endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',

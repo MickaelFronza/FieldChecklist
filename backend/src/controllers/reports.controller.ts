@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { ChecklistExecution, ExecutionItem, User } from '../models';
+import { ChecklistExecution, ExecutionItem, User, Vehicle } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/apiError';
 
@@ -11,7 +11,11 @@ export const getDailyReport = asyncHandler(async (req: Request, res: Response) =
 
   const executions = await ChecklistExecution.findAll({
     where: { startedAt: { [Op.between]: [start, end] } },
-    include: [{ model: ExecutionItem, as: 'items' }],
+    include: [
+      { model: ExecutionItem, as: 'items' },
+      { model: Vehicle, as: 'vehicle' },
+      { model: User, as: 'operator', attributes: ['id', 'name'] },
+    ],
   });
 
   const total = executions.length;
@@ -44,9 +48,65 @@ export const getOperatorReport = asyncHandler(async (req: Request, res: Response
 
   const executions = await ChecklistExecution.findAll({
     where: { operatorId },
-    include: [{ model: ExecutionItem, as: 'items' }],
+    include: [
+      { model: ExecutionItem, as: 'items' },
+      { model: Vehicle, as: 'vehicle' },
+    ],
     order: [['startedAt', 'DESC']],
   });
 
   res.json({ operator, executions });
+});
+
+export const getOperatorStatusToday = asyncHandler(async (_req: Request, res: Response) => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const operators = await User.findAll({
+    where: { role: 'operator', active: true },
+    order: [['name', 'ASC']],
+  });
+
+  const executions = await ChecklistExecution.findAll({
+    where: { startedAt: { [Op.between]: [start, end] } },
+    include: [{ model: Vehicle, as: 'vehicle' }],
+    order: [['startedAt', 'DESC']],
+  });
+
+  // execucoes ja vem ordenadas por mais recente primeiro, entao o primeiro
+  // match por operador e sempre o status mais atual dele hoje
+  const latestByOperator = new Map<string, (typeof executions)[number]>();
+  for (const execution of executions) {
+    if (!latestByOperator.has(execution.operatorId)) {
+      latestByOperator.set(execution.operatorId, execution);
+    }
+  }
+
+  const operatorStatuses = operators.map((operator) => {
+    const execution = latestByOperator.get(operator.id);
+    const status: 'not_started' | 'in_progress' | 'completed' = !execution
+      ? 'not_started'
+      : execution.status === 'completed'
+        ? 'completed'
+        : 'in_progress';
+
+    return {
+      operatorId: operator.id,
+      name: operator.name,
+      status,
+      vehicleName: execution?.vehicle?.name ?? null,
+      lastStartedAt: execution?.startedAt ?? null,
+    };
+  });
+
+  res.json({
+    date: start.toISOString().slice(0, 10),
+    totalOperators: operators.length,
+    completed: operatorStatuses.filter((o) => o.status === 'completed').length,
+    inProgress: operatorStatuses.filter((o) => o.status === 'in_progress').length,
+    notStarted: operatorStatuses.filter((o) => o.status === 'not_started').length,
+    operators: operatorStatuses,
+  });
 });

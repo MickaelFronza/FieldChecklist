@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 
-export interface MachineAttributes {
+export interface VehicleAttributes {
   id: string;
   code: string;
   name: string;
@@ -11,9 +11,9 @@ export interface MachineAttributes {
   updatedAt: Date;
 }
 
-export type MachineCreationAttributes = Optional<MachineAttributes, 'id' | 'active' | 'createdAt' | 'updatedAt'>;
+export type VehicleCreationAttributes = Optional<VehicleAttributes, 'id' | 'active' | 'createdAt' | 'updatedAt'>;
 
-export class Machine extends Model<MachineAttributes, MachineCreationAttributes> implements MachineAttributes {
+export class Vehicle extends Model<VehicleAttributes, VehicleCreationAttributes> implements VehicleAttributes {
   declare id: string;
   declare code: string;
   declare name: string;
@@ -23,7 +23,7 @@ export class Machine extends Model<MachineAttributes, MachineCreationAttributes>
   declare updatedAt: Date;
 }
 
-Machine.init(
+Vehicle.init(
   {
     id: {
       type: DataTypes.UUID,
@@ -59,7 +59,7 @@ Machine.init(
   },
   {
     sequelize,
-    tableName: 'machines',
-    modelName: 'Machine',
+    tableName: 'vehicles',
+    modelName: 'Vehicle',
   },
 );

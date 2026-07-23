@@ -27,7 +27,7 @@ const EMPTY_ITEM: TemplateItemInput = {
 
 export interface TemplateFormValues {
   name: string;
-  machineType: string;
+  vehicleType: string;
   items: TemplateItemInput[];
 }
 
@@ -51,13 +51,13 @@ export function TemplateFormDialog({
   onSubmit,
 }: TemplateFormDialogProps) {
   const [name, setName] = useState('');
-  const [machineType, setMachineType] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
   const [items, setItems] = useState<TemplateItemInput[]>([{ ...EMPTY_ITEM }]);
 
   useEffect(() => {
     if (!open) return;
     setName(initialValues?.name ?? '');
-    setMachineType(initialValues?.machineType ?? '');
+    setVehicleType(initialValues?.vehicleType ?? '');
     setItems(initialValues?.items.length ? initialValues.items.map((item) => ({ ...item })) : [{ ...EMPTY_ITEM }]);
   }, [open, initialValues]);
 
@@ -71,7 +71,7 @@ export function TemplateFormDialog({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    onSubmit({ name, machineType, items });
+    onSubmit({ name, vehicleType, items });
   };
 
   const isValid = name.trim().length > 0 && items.length > 0 && items.every((item) => item.title.trim().length > 0);
@@ -83,10 +83,10 @@ export function TemplateFormDialog({
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           <TextField label="Nome do Template" required value={name} onChange={(e) => setName(e.target.value)} />
           <TextField
-            label="Tipo de Máquina"
+            label="Tipo de Veículo"
             placeholder="Trator (vazio = todos)"
-            value={machineType}
-            onChange={(e) => setMachineType(e.target.value)}
+            value={vehicleType}
+            onChange={(e) => setVehicleType(e.target.value)}
           />
 
           <Divider />

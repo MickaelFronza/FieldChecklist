@@ -16,7 +16,7 @@ export async function fetchTemplates(): Promise<ChecklistTemplate[]> {
 
 export interface CreateTemplateInput {
   name: string;
-  machineType?: string;
+  vehicleType?: string;
   items: TemplateItemInput[];
 }
 

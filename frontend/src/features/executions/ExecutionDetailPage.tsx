@@ -4,6 +4,7 @@ import { Box, Card, CardContent, Grid, Link, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { fetchExecutionDetail } from './api';
 import { ExecutionStatusChip, ItemStatusChip } from '@/components/common/StatusChip';
+import { SHIFT_LABEL } from '@/lib/shift';
 
 export function ExecutionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +27,7 @@ export function ExecutionDetailPage() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h5">{execution.machine?.name ?? execution.machineId}</Typography>
+            <Typography variant="h5">{execution.vehicle?.name ?? execution.vehicleId}</Typography>
             <ExecutionStatusChip status={execution.status} />
           </Box>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -40,7 +41,7 @@ export function ExecutionDetailPage() {
               <Typography variant="caption" color="text.secondary">
                 Turno
               </Typography>
-              <Typography>{execution.shift}</Typography>
+              <Typography>{SHIFT_LABEL[execution.shift]}</Typography>
             </Grid>
             <Grid item xs={6} sm={3}>
               <Typography variant="caption" color="text.secondary">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
+  Button,
   MenuItem,
   Paper,
   Stack,
@@ -19,6 +20,15 @@ import { StatTile } from '@/components/common/StatTile';
 import { ExecutionStatusChip } from '@/components/common/StatusChip';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { downloadCsv, downloadPdfTable } from '@/lib/exportUtils';
+import { SHIFT_LABEL } from '@/lib/shift';
+import type { ChecklistExecution } from '@/types/api';
+
+const STATUS_LABEL: Record<ChecklistExecution['status'], string> = {
+  in_progress: 'Em Andamento',
+  completed: 'Concluído',
+  incomplete: 'Incompleto',
+};
 
 export function ReportsPage() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -58,12 +68,83 @@ export function ReportsPage() {
         <LoadingState />
       ) : (
         dailyReport && (
-          <Stack direction="row" spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
-            <StatTile label="Total de execuções" value={dailyReport.totalExecutions} />
-            <StatTile label="Concluídas" value={dailyReport.completedExecutions} color="success.main" />
-            <StatTile label="Incompletas" value={dailyReport.incompleteExecutions} color="warning.main" />
-            <StatTile label="Itens não conformes" value={dailyReport.nonConformantItems} color="error.main" />
-          </Stack>
+          <>
+            <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+              <StatTile label="Total de execuções" value={dailyReport.totalExecutions} />
+              <StatTile label="Concluídas" value={dailyReport.completedExecutions} color="success.main" />
+              <StatTile label="Incompletas" value={dailyReport.incompleteExecutions} color="warning.main" />
+              <StatTile label="Itens não conformes" value={dailyReport.nonConformantItems} color="error.main" />
+            </Stack>
+
+            {dailyReport.executions.length > 0 && (
+              <>
+                <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      downloadCsv(
+                        `relatorio-diario-${date}.csv`,
+                        ['Operador', 'Veículo', 'Turno', 'Status'],
+                        dailyReport.executions.map((execution) => [
+                          execution.operator?.name ?? execution.operatorId,
+                          execution.vehicle?.name ?? execution.vehicleId,
+                          SHIFT_LABEL[execution.shift],
+                          STATUS_LABEL[execution.status],
+                        ]),
+                      )
+                    }
+                  >
+                    Exportar CSV
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      downloadPdfTable(
+                        `relatorio-diario-${date}.pdf`,
+                        `Relatório Diário — ${date}`,
+                        ['Operador', 'Veículo', 'Turno', 'Status'],
+                        dailyReport.executions.map((execution) => [
+                          execution.operator?.name ?? execution.operatorId,
+                          execution.vehicle?.name ?? execution.vehicleId,
+                          SHIFT_LABEL[execution.shift],
+                          STATUS_LABEL[execution.status],
+                        ]),
+                      )
+                    }
+                  >
+                    Exportar PDF
+                  </Button>
+                </Stack>
+
+                <Paper variant="outlined" sx={{ overflow: 'hidden', mb: 4 }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Operador</TableCell>
+                        <TableCell>Veículo</TableCell>
+                        <TableCell>Turno</TableCell>
+                        <TableCell>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {dailyReport.executions.map((execution) => (
+                        <TableRow key={execution.id} hover>
+                          <TableCell>{execution.operator?.name ?? execution.operatorId}</TableCell>
+                          <TableCell>{execution.vehicle?.name ?? execution.vehicleId}</TableCell>
+                          <TableCell>{SHIFT_LABEL[execution.shift]}</TableCell>
+                          <TableCell>
+                            <ExecutionStatusChip status={execution.status} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              </>
+            )}
+          </>
         )
       )}
 
@@ -88,32 +169,78 @@ export function ReportsPage() {
       </TextField>
 
       {operatorReport && (
-        <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-          {operatorReport.executions.length === 0 ? (
-            <EmptyState message="Nenhuma execução encontrada para este operador." />
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Data</TableCell>
-                  <TableCell>Turno</TableCell>
-                  <TableCell>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {operatorReport.executions.map((execution) => (
-                  <TableRow key={execution.id} hover>
-                    <TableCell>{new Date(execution.startedAt).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell>{execution.shift}</TableCell>
-                    <TableCell>
-                      <ExecutionStatusChip status={execution.status} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <>
+          {operatorReport.executions.length > 0 && (
+            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() =>
+                  downloadCsv(
+                    `relatorio-operador-${operatorReport.operator.name}.csv`,
+                    ['Data', 'Veículo', 'Turno', 'Status'],
+                    operatorReport.executions.map((execution) => [
+                      new Date(execution.startedAt).toLocaleDateString('pt-BR'),
+                      execution.vehicle?.name ?? execution.vehicleId,
+                      SHIFT_LABEL[execution.shift],
+                      STATUS_LABEL[execution.status],
+                    ]),
+                  )
+                }
+              >
+                Exportar CSV
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() =>
+                  downloadPdfTable(
+                    `relatorio-operador-${operatorReport.operator.name}.pdf`,
+                    `Relatório — ${operatorReport.operator.name}`,
+                    ['Data', 'Veículo', 'Turno', 'Status'],
+                    operatorReport.executions.map((execution) => [
+                      new Date(execution.startedAt).toLocaleDateString('pt-BR'),
+                      execution.vehicle?.name ?? execution.vehicleId,
+                      SHIFT_LABEL[execution.shift],
+                      STATUS_LABEL[execution.status],
+                    ]),
+                  )
+                }
+              >
+                Exportar PDF
+              </Button>
+            </Stack>
           )}
-        </Paper>
+
+          <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+            {operatorReport.executions.length === 0 ? (
+              <EmptyState message="Nenhuma execução encontrada para este operador." />
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Data</TableCell>
+                    <TableCell>Veículo</TableCell>
+                    <TableCell>Turno</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {operatorReport.executions.map((execution) => (
+                    <TableRow key={execution.id} hover>
+                      <TableCell>{new Date(execution.startedAt).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell>{execution.vehicle?.name ?? execution.vehicleId}</TableCell>
+                      <TableCell>{SHIFT_LABEL[execution.shift]}</TableCell>
+                      <TableCell>
+                        <ExecutionStatusChip status={execution.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Paper>
+        </>
       )}
     </Box>
   );

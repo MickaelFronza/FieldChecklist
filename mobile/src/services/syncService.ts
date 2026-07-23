@@ -7,6 +7,7 @@ import {
   getExecutionItems,
   listPendingSyncExecutions,
   markExecutionSyncStatus,
+  markItemPhotoSynced,
 } from '../db/executionsRepository';
 
 interface SyncBatchResponse {
@@ -25,7 +26,7 @@ async function syncOneExecution(execution: ExecutionRow): Promise<void> {
     execution: {
       id: execution.id,
       templateId: execution.template_id,
-      machineId: execution.machine_id,
+      vehicleId: execution.vehicle_id,
       operatorId: execution.operator_id,
       shift: execution.shift,
       status: execution.status,
@@ -76,6 +77,15 @@ async function uploadPhotos(items: ExecutionItemRow[]): Promise<void> {
   await apiClient.post('/sync/photos', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+
+  // marca como enviado assim que o backend confirma o enfileiramento -
+  // antes disso, um retry (ex.: se waitForSyncDone expirar e o item voltar
+  // pra 'pending') reenviaria as mesmas fotos do zero
+  for (const item of items) {
+    if (item.photo_uri) {
+      await markItemPhotoSynced(item.id);
+    }
+  }
 }
 
 async function waitForSyncDone(executionId: string, attempts = 5, delayMs = 1500): Promise<boolean> {

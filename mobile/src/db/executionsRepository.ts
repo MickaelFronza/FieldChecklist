@@ -3,14 +3,14 @@ import type {
   ChecklistTemplate,
   ExecutionItemStatus,
   ExecutionStatus,
-  Machine,
+  Vehicle,
   Shift,
 } from '../types/api';
 
 export interface ExecutionRow {
   id: string;
   template_id: string;
-  machine_id: string;
+  vehicle_id: string;
   operator_id: string;
   shift: Shift;
   status: ExecutionStatus;
@@ -35,7 +35,7 @@ export interface ExecutionItemRow {
   marked_at: string | null;
 }
 
-// --- Cache de templates/maquinas (espelho de /templates/active e /machines/active) ---
+// --- Cache de templates/veiculos (espelho de /templates/active e /vehicles/active) ---
 
 export async function cacheTemplates(templates: ChecklistTemplate[]): Promise<void> {
   const db = await getDatabase();
@@ -43,10 +43,10 @@ export async function cacheTemplates(templates: ChecklistTemplate[]): Promise<vo
     await db.runAsync('DELETE FROM cached_templates');
     for (const template of templates) {
       await db.runAsync(
-        'INSERT INTO cached_templates (id, name, machine_type, version, active, items_json) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO cached_templates (id, name, vehicle_type, version, active, items_json) VALUES (?, ?, ?, ?, ?, ?)',
         template.id,
         template.name,
-        template.machineType,
+        template.vehicleType,
         template.version,
         template.active ? 1 : 0,
         JSON.stringify(template.items),
@@ -60,7 +60,7 @@ export async function getCachedTemplates(): Promise<ChecklistTemplate[]> {
   const rows = await db.getAllAsync<{
     id: string;
     name: string;
-    machine_type: string | null;
+    vehicle_type: string | null;
     version: number;
     active: number;
     items_json: string;
@@ -69,31 +69,31 @@ export async function getCachedTemplates(): Promise<ChecklistTemplate[]> {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    machineType: row.machine_type,
+    vehicleType: row.vehicle_type,
     version: row.version,
     active: Boolean(row.active),
     items: JSON.parse(row.items_json),
   }));
 }
 
-export async function cacheMachines(machines: Machine[]): Promise<void> {
+export async function cacheVehicles(vehicles: Vehicle[]): Promise<void> {
   const db = await getDatabase();
   await db.withTransactionAsync(async () => {
-    await db.runAsync('DELETE FROM cached_machines');
-    for (const machine of machines) {
+    await db.runAsync('DELETE FROM cached_vehicles');
+    for (const vehicle of vehicles) {
       await db.runAsync(
-        'INSERT INTO cached_machines (id, code, name, type, active) VALUES (?, ?, ?, ?, ?)',
-        machine.id,
-        machine.code,
-        machine.name,
-        machine.type,
-        machine.active ? 1 : 0,
+        'INSERT INTO cached_vehicles (id, code, name, type, active) VALUES (?, ?, ?, ?, ?)',
+        vehicle.id,
+        vehicle.code,
+        vehicle.name,
+        vehicle.type,
+        vehicle.active ? 1 : 0,
       );
     }
   });
 }
 
-export async function getCachedMachines(): Promise<Machine[]> {
+export async function getCachedVehicles(): Promise<Vehicle[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
     id: string;
@@ -101,7 +101,7 @@ export async function getCachedMachines(): Promise<Machine[]> {
     name: string;
     type: string;
     active: number;
-  }>('SELECT * FROM cached_machines WHERE active = 1 ORDER BY name ASC');
+  }>('SELECT * FROM cached_vehicles WHERE active = 1 ORDER BY name ASC');
 
   return rows.map((row) => ({ ...row, active: Boolean(row.active) }));
 }
@@ -116,17 +116,17 @@ export async function getExecutionById(executionId: string): Promise<ExecutionRo
 
 export async function findOpenExecution(
   operatorId: string,
-  machineId: string,
+  vehicleId: string,
   shift: Shift,
   dateISO: string,
 ): Promise<ExecutionRow | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<ExecutionRow>(
     `SELECT * FROM executions
-     WHERE operator_id = ? AND machine_id = ? AND shift = ? AND status = 'in_progress'
+     WHERE operator_id = ? AND vehicle_id = ? AND shift = ? AND status = 'in_progress'
        AND started_at LIKE ? || '%'`,
     operatorId,
-    machineId,
+    vehicleId,
     shift,
     dateISO,
   );
@@ -137,11 +137,11 @@ export async function createExecution(execution: ExecutionRow): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO executions
-      (id, template_id, machine_id, operator_id, shift, status, sync_status, started_at, started_lat, started_lng, device_id, app_version)
+      (id, template_id, vehicle_id, operator_id, shift, status, sync_status, started_at, started_lat, started_lng, device_id, app_version)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     execution.id,
     execution.template_id,
-    execution.machine_id,
+    execution.vehicle_id,
     execution.operator_id,
     execution.shift,
     execution.status,

@@ -4,13 +4,13 @@ PRAGMA journal_mode = WAL;
 CREATE TABLE IF NOT EXISTS cached_templates (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  machine_type TEXT,
+  vehicle_type TEXT,
   version INTEGER NOT NULL,
   active INTEGER NOT NULL,
   items_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS cached_machines (
+CREATE TABLE IF NOT EXISTS cached_vehicles (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS cached_machines (
 CREATE TABLE IF NOT EXISTS executions (
   id TEXT PRIMARY KEY,
   template_id TEXT NOT NULL,
-  machine_id TEXT NOT NULL,
+  vehicle_id TEXT NOT NULL,
   operator_id TEXT NOT NULL,
   shift TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'in_progress',

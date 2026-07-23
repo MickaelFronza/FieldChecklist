@@ -6,7 +6,7 @@ export interface LoginOption {
   role: UserRole;
 }
 
-export interface Machine {
+export interface Vehicle {
   id: string;
   code: string;
   name: string;
@@ -28,13 +28,13 @@ export interface TemplateItem {
 export interface ChecklistTemplate {
   id: string;
   name: string;
-  machineType: string | null;
+  vehicleType: string | null;
   version: number;
   active: boolean;
   items: TemplateItem[];
 }
 
-export type Shift = 'morning' | 'afternoon' | 'night';
+export type Shift = 'manha' | 'tarde' | 'noite';
 export type ExecutionStatus = 'in_progress' | 'completed' | 'incomplete';
 export type ExecutionItemStatus = 'ok' | 'non_conformant' | 'not_applicable' | 'pending';
 

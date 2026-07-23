@@ -1,97 +1,120 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { apiClient } from '../lib/apiClient';
+import { connectSocket, disconnectSocket } from '../lib/socketClient';
 import { useAuthStore } from '../stores/authStore';
 import { useChecklistStore } from '../stores/checklistStore';
-import { getCurrentShift, todayISODate } from '../lib/shift';
+import { getCurrentShift, refreshShiftWindows, SHIFT_LABELS, todayISODate } from '../lib/shift';
 import { getDeviceId } from '../lib/deviceId';
 import { generateUUID } from '../lib/uuid';
 import { getCurrentLocation } from '../lib/location';
 import { colors, radius, shadow, spacing } from '../theme';
 import {
-  cacheMachines,
+  cacheVehicles,
   cacheTemplates,
   createExecution,
   findOpenExecution,
-  getCachedMachines,
+  getCachedVehicles,
   getCachedTemplates,
   getExecutionItems,
   upsertExecutionItem,
   type ExecutionRow,
 } from '../db/executionsRepository';
-import type { ChecklistTemplate, Machine } from '../types/api';
+import type { ChecklistTemplate, Vehicle } from '../types/api';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'MachineSelection'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'VehicleSelection'>;
 
-export function MachineSelectionScreen({ navigation }: Props) {
+export function VehicleSelectionScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const startChecklist = useChecklistStore((state) => state.start);
 
-  const [machines, setMachines] = useState<Machine[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [startingMachineId, setStartingMachineId] = useState<string | null>(null);
+  const [startingVehicleId, setStartingVehicleId] = useState<string | null>(null);
   const hasLoadedOnce = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadVehicles = useCallback(async () => {
+    if (!hasLoadedOnce.current) setLoading(true);
+    refreshShiftWindows().catch(() => {});
+    try {
+      const [vehiclesResponse, templatesResponse] = await Promise.all([
+        apiClient.get<Vehicle[]>('/vehicles/active'),
+        apiClient.get<ChecklistTemplate[]>('/templates/active'),
+      ]);
+      if (!isMountedRef.current) return;
+      setVehicles(vehiclesResponse.data);
+      setTemplates(templatesResponse.data);
+      await cacheVehicles(vehiclesResponse.data);
+      await cacheTemplates(templatesResponse.data);
+    } catch {
+      if (!isMountedRef.current) return;
+      // offline: usa o que ja foi cacheado numa sessao anterior
+      const [cachedVehicles, cachedTemplates] = await Promise.all([getCachedVehicles(), getCachedTemplates()]);
+      if (!isMountedRef.current) return;
+      setVehicles(cachedVehicles);
+      setTemplates(cachedTemplates);
+      if (cachedVehicles.length === 0) {
+        setError('Sem conexão e sem dados salvos. Conecte-se à internet ao menos uma vez.');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        hasLoadedOnce.current = true;
+        setLoading(false);
+      }
+    }
+  }, []);
 
   // useFocusEffect (nao useEffect) para buscar dados toda vez que a tela
   // ganha foco - inclui voltar de outra tela e o app retomar do background.
-  // useEffect com deps [] so roda na 1a montagem, entao editar uma maquina
-  // no painel web enquanto o operador ja estava nesta tela nunca refletia.
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-
-      (async () => {
-        if (!hasLoadedOnce.current) setLoading(true);
-        try {
-          const [machinesResponse, templatesResponse] = await Promise.all([
-            apiClient.get<Machine[]>('/machines/active'),
-            apiClient.get<ChecklistTemplate[]>('/templates/active'),
-          ]);
-          if (cancelled) return;
-          setMachines(machinesResponse.data);
-          setTemplates(templatesResponse.data);
-          await cacheMachines(machinesResponse.data);
-          await cacheTemplates(templatesResponse.data);
-        } catch {
-          if (cancelled) return;
-          // offline: usa o que ja foi cacheado numa sessao anterior
-          const [cachedMachines, cachedTemplates] = await Promise.all([getCachedMachines(), getCachedTemplates()]);
-          if (cancelled) return;
-          setMachines(cachedMachines);
-          setTemplates(cachedTemplates);
-          if (cachedMachines.length === 0) {
-            setError('Sem conexão e sem dados salvos. Conecte-se à internet ao menos uma vez.');
-          }
-        } finally {
-          if (!cancelled) {
-            hasLoadedOnce.current = true;
-            setLoading(false);
-          }
-        }
-      })();
-
-      return () => {
-        cancelled = true;
-      };
-    }, []),
+      loadVehicles();
+    }, [loadVehicles]),
   );
 
-  const handleSelectMachine = async (machine: Machine) => {
+  // alem do refetch por foco, escuta o socket enquanto a tela esta montada -
+  // sem isso, desativar um veiculo enquanto o operador ja esta olhando esta
+  // tela (sem trocar de tela) nunca refletia ate o proximo foco
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const socket = connectSocket(accessToken);
+    const handleVehicleDeactivated = () => {
+      loadVehicles();
+    };
+    socket.on('vehicle:deactivated', handleVehicleDeactivated);
+
+    return () => {
+      socket.off('vehicle:deactivated', handleVehicleDeactivated);
+      disconnectSocket();
+    };
+  }, [accessToken, loadVehicles]);
+
+  const handleSelectVehicle = async (vehicle: Vehicle) => {
     if (!user) return;
-    setStartingMachineId(machine.id);
+    setStartingVehicleId(vehicle.id);
     setError(null);
 
     try {
       const shift = getCurrentShift();
       const today = todayISODate();
 
-      const existing = await findOpenExecution(user.id, machine.id, shift, today);
+      const existing = await findOpenExecution(user.id, vehicle.id, shift, today);
       if (existing) {
         const items = await getExecutionItems(existing.id);
         const template = templates.find((t) => t.id === existing.template_id);
@@ -99,14 +122,14 @@ export function MachineSelectionScreen({ navigation }: Props) {
           setError('Template do checklist em andamento não foi encontrado.');
           return;
         }
-        startChecklist({ execution: existing, template, machine, items });
+        startChecklist({ execution: existing, template, vehicle, items });
         navigation.navigate('Checklist');
         return;
       }
 
-      const template = templates.find((t) => t.machineType === machine.type) ?? templates.find((t) => !t.machineType);
+      const template = templates.find((t) => t.vehicleType === vehicle.type) ?? templates.find((t) => !t.vehicleType);
       if (!template) {
-        setError('Nenhum template de checklist disponível para esta máquina.');
+        setError('Nenhum template de checklist disponível para este veículo.');
         return;
       }
 
@@ -117,7 +140,7 @@ export function MachineSelectionScreen({ navigation }: Props) {
       const newExecution: ExecutionRow = {
         id: generateUUID(),
         template_id: template.id,
-        machine_id: machine.id,
+        vehicle_id: vehicle.id,
         operator_id: user.id,
         shift,
         status: 'in_progress',
@@ -146,10 +169,10 @@ export function MachineSelectionScreen({ navigation }: Props) {
       }
 
       const items = await getExecutionItems(newExecution.id);
-      startChecklist({ execution: newExecution, template, machine, items });
+      startChecklist({ execution: newExecution, template, vehicle, items });
       navigation.navigate('Checklist');
     } finally {
-      setStartingMachineId(null);
+      setStartingVehicleId(null);
     }
   };
 
@@ -163,29 +186,30 @@ export function MachineSelectionScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Escolha a máquina</Text>
+      <Text style={styles.title}>Escolha o veículo</Text>
+      <Text style={styles.subtitle}>Turno atual: {SHIFT_LABELS[getCurrentShift()]}</Text>
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       <FlatList
-        data={machines}
+        data={vehicles}
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={{ gap: spacing.md }}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.machineCard}
+            style={styles.vehicleCard}
             activeOpacity={0.7}
-            disabled={startingMachineId !== null}
-            onPress={() => handleSelectMachine(item)}
+            disabled={startingVehicleId !== null}
+            onPress={() => handleSelectVehicle(item)}
           >
-            {startingMachineId === item.id ? (
+            {startingVehicleId === item.id ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <Text style={styles.machineIcon}>🚜</Text>
-                <Text style={styles.machineCode}>{item.code}</Text>
-                <Text style={styles.machineName}>{item.name}</Text>
+                <Text style={styles.vehicleIcon}>🚜</Text>
+                <Text style={styles.vehicleCode}>{item.code}</Text>
+                <Text style={styles.vehicleName}>{item.name}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -198,9 +222,10 @@ export function MachineSelectionScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: spacing.xl, paddingTop: 56, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 26, fontWeight: '700', marginBottom: spacing.lg, textAlign: 'center', color: colors.textPrimary },
+  title: { fontSize: 26, fontWeight: '700', marginBottom: spacing.xs, textAlign: 'center', color: colors.textPrimary },
+  subtitle: { fontSize: 14, marginBottom: spacing.lg, textAlign: 'center', color: colors.textSecondary },
   errorText: { color: colors.error, textAlign: 'center', marginBottom: spacing.md, fontSize: 16 },
-  machineCard: {
+  vehicleCard: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -209,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadow.card,
   },
-  machineIcon: { fontSize: 32, marginBottom: spacing.xs },
-  machineCode: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.xs },
-  machineName: { fontSize: 18, fontWeight: '600', textAlign: 'center', color: colors.textPrimary },
+  vehicleIcon: { fontSize: 32, marginBottom: spacing.xs },
+  vehicleCode: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.xs },
+  vehicleName: { fontSize: 18, fontWeight: '600', textAlign: 'center', color: colors.textPrimary },
 });

@@ -6,7 +6,7 @@ import type { User } from './User';
 export interface ChecklistTemplateAttributes {
   id: string;
   name: string;
-  machineType: string | null;
+  vehicleType: string | null;
   version: number;
   active: boolean;
   createdBy: string | null;
@@ -16,7 +16,7 @@ export interface ChecklistTemplateAttributes {
 
 export type ChecklistTemplateCreationAttributes = Optional<
   ChecklistTemplateAttributes,
-  'id' | 'machineType' | 'version' | 'active' | 'createdBy' | 'createdAt' | 'updatedAt'
+  'id' | 'vehicleType' | 'version' | 'active' | 'createdBy' | 'createdAt' | 'updatedAt'
 >;
 
 export class ChecklistTemplate
@@ -25,7 +25,7 @@ export class ChecklistTemplate
 {
   declare id: string;
   declare name: string;
-  declare machineType: string | null;
+  declare vehicleType: string | null;
   declare version: number;
   declare active: boolean;
   declare createdBy: string | null;
@@ -47,10 +47,10 @@ ChecklistTemplate.init(
       type: DataTypes.STRING(100),
       allowNull: false,
     },
-    machineType: {
+    vehicleType: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      field: 'machine_type',
+      field: 'vehicle_type',
     },
     version: {
       type: DataTypes.INTEGER,
