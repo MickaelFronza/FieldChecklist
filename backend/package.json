@@ -30,11 +30,10 @@
     "http-proxy-middleware": "^4.2.0",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.2.0",
     "mysql2": "^3.11.0",
     "sequelize": "^6.37.3",
     "socket.io": "^4.7.5",
-    "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -44,10 +43,9 @@
     "@types/geoip-lite": "^1.4.4",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/multer": "^1.4.11",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.14.10",
     "@types/supertest": "^6.0.2",
-    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
     "eslint": "^8.57.0",
@@ -57,5 +55,9 @@
     "ts-jest": "^29.2.2",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3"
+  },
+  "overrides": {
+    "tar": "^7.5.21",
+    "uuid": "^11.1.1"
   }
 }
