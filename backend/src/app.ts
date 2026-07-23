@@ -19,22 +19,28 @@ export function createApp(): Express {
   // pra ambientes com mais de um proxy na frente (ex.: Cloudflare + Traefik).
   app.set('trust proxy', env.trustProxyHops);
 
-  app.use(helmet());
   app.use(cors({ origin: env.corsOrigin }));
   app.use(cookieParser());
 
-  // proxy do console web do MinIO (admin-only) - montado ANTES do
-  // express.json() pra nao consumir o body da requisicao antes de repassar
-  // pro MinIO (senao um login no console, por exemplo, nunca chegaria com o
-  // corpo original). A porta 9001 do MinIO nunca fica exposta pra internet -
-  // so acessivel via essa rota, atras de autenticacao de admin. Usa
-  // authenticateFromQueryOrHeader (nao o authenticate padrao) porque isso e
-  // carregado num <iframe src="...">, e o navegador nao permite anexar um
-  // header Authorization numa navegacao de iframe. So a navegacao inicial
-  // carrega ?token= - as chamadas seguintes que o proprio console do MinIO
-  // faz (JS/CSS/API dele) nao tem como carregar esse query param, entao a
-  // authenticateFromQueryOrHeader tambem grava um cookie de curta duracao na
-  // 1a resposta valida, e essas chamadas seguintes se autenticam por ele.
+  // proxy do console web do MinIO (admin-only) - montado ANTES do helmet() E
+  // do express.json(). Antes do express.json() pra nao consumir o body da
+  // requisicao antes de repassar pro MinIO (senao um login no console, por
+  // exemplo, nunca chegaria com o corpo original). Antes do helmet() porque
+  // o helmet aplica X-Frame-Options: SAMEORIGIN (+ frame-ancestors no CSP)
+  // em toda resposta por padrao - removendo so o header que o MinIO manda
+  // (DENY) nao bastava, o do helmet ainda ficava por cima; a rota inteira
+  // fica fora do alcance do helmet (o proprio console do MinIO ja manda seu
+  // proprio conjunto de headers de seguranca nas respostas dele).
+  //
+  // A porta 9001 do MinIO nunca fica exposta pra internet - so acessivel via
+  // essa rota, atras de autenticacao de admin. Usa authenticateFromQueryOrHeader
+  // (nao o authenticate padrao) porque isso e carregado num <iframe src="...">,
+  // e o navegador nao permite anexar um header Authorization numa navegacao
+  // de iframe. So a navegacao inicial carrega ?token= - as chamadas seguintes
+  // que o proprio console do MinIO faz (JS/CSS/API dele) nao tem como
+  // carregar esse query param, entao a authenticateFromQueryOrHeader tambem
+  // grava um cookie de curta duracao na 1a resposta valida, e essas chamadas
+  // seguintes se autenticam por ele.
   app.use(
     '/api/v1/admin/minio-console',
     authenticateFromQueryOrHeader('minio-console'),
@@ -46,14 +52,9 @@ export function createApp(): Express {
       pathRewrite: { '^/api/v1/admin/minio-console': '' },
       on: {
         proxyRes: (proxyRes) => {
-          // o console do MinIO manda "X-Frame-Options: DENY" por padrao (ele
-          // nao espera ser embutido em iframe nenhum) - o navegador obedece
-          // isso literalmente e recusa renderizar, mostrando uma tela em
-          // branco/quebrada mesmo com a requisicao respondendo 200 OK. Como
-          // esse proxy so existe justamente pra ser carregado num iframe
-          // (autenticado, admin-only, nunca teve a porta do console exposta
-          // direto), remove o header pra permitir. Tambem tira um eventual
-          // frame-ancestors restritivo do CSP do MinIO, mesma razao.
+          // o console do MinIO tambem manda "X-Frame-Options: DENY" por
+          // padrao (ele nao espera ser embutido em iframe nenhum) - some com
+          // isso tambem, pro mesmo fim
           delete proxyRes.headers['x-frame-options'];
           const csp = proxyRes.headers['content-security-policy'];
           if (typeof csp === 'string') {
@@ -67,6 +68,7 @@ export function createApp(): Express {
     }),
   );
 
+  app.use(helmet());
   app.use(express.json());
 
   app.get('/health', (_req, res) => {
