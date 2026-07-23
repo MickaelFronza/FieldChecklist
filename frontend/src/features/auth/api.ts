@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { apiClient } from '@/lib/apiClient';
-import { getDeviceId } from '@/lib/deviceId';
 import type { User } from '@/types/api';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
@@ -12,11 +11,7 @@ export interface LoginResponse {
 }
 
 export async function loginWithPassword(email: string, password: string): Promise<LoginResponse> {
-  const { data } = await apiClient.post<LoginResponse>('/auth/login-password', {
-    email,
-    password,
-    deviceId: getDeviceId(),
-  });
+  const { data } = await apiClient.post<LoginResponse>('/auth/login-password', { email, password });
   return data;
 }
 

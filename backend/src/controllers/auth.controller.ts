@@ -106,11 +106,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 const loginPasswordSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  deviceId: z.string().min(1),
 });
 
+// sem controle de aparelhos aqui: o limite de devices e uma preocupacao do
+// operador de campo no mobile (evitar uso descontrolado do PIN em varios
+// celulares) - o painel web de Admin/Gestor nunca deve ficar bloqueado por
+// isso
 export const loginWithPassword = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, deviceId } = loginPasswordSchema.parse(req.body);
+  const { email, password } = loginPasswordSchema.parse(req.body);
 
   const attemptsKey = `login_attempts:${email}`;
   const attempts = Number((await redisClient.get(attemptsKey)) ?? 0);
@@ -129,7 +132,6 @@ export const loginWithPassword = asyncHandler(async (req: Request, res: Response
   }
 
   await redisClient.del(attemptsKey);
-  await authorizeDevice(user, deviceId);
 
   const payload = { sub: user.id, role: user.role };
   const accessToken = signAccessToken(payload);
