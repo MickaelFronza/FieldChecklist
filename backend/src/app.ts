@@ -7,6 +7,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { env } from './config/env';
 import { apiV1Router } from './routes';
 import { authenticateFromQueryOrHeader, authorize } from './middlewares/auth';
+import { verifyAccessToken } from './services/auth.service';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 
 export function createApp(): Express {
@@ -98,6 +99,40 @@ export function createApp(): Express {
 
   app.use('/api/v1/auth', authLimiter);
   app.use('/api/v1', generalLimiter, apiV1Router);
+
+  // fallback do console do MinIO: ele referencia os proprios assets (CSS/JS/
+  // fontes) por caminho absoluto a partir da raiz do dominio (ex.:
+  // /styles/root-styles.css), sem saber que esta sendo servido debaixo de
+  // /api/v1/admin/minio-console - essas requisicoes chegam aqui, fora
+  // daquele prefixo, e cairiam no 404 normal da API. So encaminha pro MinIO
+  // se o cookie de sessao do console existir E for um token valido com o
+  // escopo certo (nao so presente) - e o ULTIMO middleware antes do 404,
+  // entao nunca disputa com nenhuma rota real da API. Sem pathRewrite: esses
+  // caminhos ja chegam "crus" (ex. /styles/root-styles.css) e o MinIO espera
+  // exatamente esse mesmo caminho na raiz dele.
+  const minioConsoleAssetFallback = createProxyMiddleware({
+    target: env.minioConsoleUrl,
+    changeOrigin: true,
+    on: {
+      proxyRes: (proxyRes) => {
+        delete proxyRes.headers['x-frame-options'];
+      },
+    },
+  });
+
+  app.use((req, res, next) => {
+    const cookieToken = (req.cookies as Record<string, string> | undefined)?.['fc_scoped_minio-console'];
+    if (!cookieToken) return next();
+
+    try {
+      const payload = verifyAccessToken(cookieToken);
+      if (payload.scope !== 'minio-console') return next();
+    } catch {
+      return next();
+    }
+
+    minioConsoleAssetFallback(req, res, next);
+  });
 
   app.use(notFoundHandler);
   app.use(errorHandler);

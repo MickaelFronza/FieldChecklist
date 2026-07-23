@@ -63,12 +63,20 @@ export function authenticateFromQueryOrHeader(expectedScope: string) {
       // 401 - so a navegacao inicial (que carrega o ?token= na propria URL)
       // funcionava, dando exatamente a tela de "conexao" quebrada no iframe.
       if (fromQuery) {
+        // path "/" (nao restrito a /api/v1/admin/minio-console): o proprio
+        // console do MinIO referencia os assets dele (CSS/JS/fontes) por
+        // caminho absoluto a partir da raiz do dominio (ex.:
+        // /styles/root-styles.css), ignorando esse prefixo por completo -
+        // essas requisicoes so carregam o cookie se o path dele cobrir a
+        // raiz. O escopo real de acesso continua sendo o do token (validado
+        // a cada uso), path largo aqui so afeta ONDE o navegador anexa o
+        // cookie, nao o que ele autoriza.
         res.cookie(cookieName, fromQuery, {
           httpOnly: true,
           secure: true,
           sameSite: 'none',
           maxAge: 5 * 60 * 1000,
-          path: '/api/v1/admin/minio-console',
+          path: '/',
         });
       }
 
