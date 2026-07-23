@@ -15,3 +15,8 @@ export async function updateAppSettings(input: Partial<AppSettings>): Promise<Ap
   const { data } = await apiClient.put<AppSettings>('/admin/settings', input);
   return data;
 }
+
+export async function fetchMinioConsoleToken(): Promise<string> {
+  const { data } = await apiClient.get<{ token: string }>('/admin/minio-console-token');
+  return data.token;
+}

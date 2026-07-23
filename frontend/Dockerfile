@@ -19,9 +19,13 @@ ENV VITE_APK_DOWNLOAD_URL=$VITE_APK_DOWNLOAD_URL
 
 RUN npm run build
 
-FROM nginx:alpine
+# imagem "unprivileged": todo o processo do nginx (master + workers) roda
+# como usuario nao-root (nginx, uid 101) desde o start, sem precisar de
+# nenhum passo extra de USER/chown - so muda a porta padrao pra 8080, ja
+# que portas <1024 exigem root pra dar bind
+FROM nginxinc/nginx-unprivileged:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 8080

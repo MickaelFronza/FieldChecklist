@@ -43,6 +43,14 @@ module.exports = {
           locationWhenInUsePermission: 'O Field Checklist usa a localização para registrar onde o checklist foi aberto.',
         },
       ],
+      [
+        'expo-splash-screen',
+        {
+          backgroundColor: '#E8F5E9',
+          image: './assets/splash-icon.png',
+          imageWidth: 220,
+        },
+      ],
     ],
   },
 };

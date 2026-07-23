@@ -15,8 +15,11 @@ export const env = {
   port: Number(process.env.PORT ?? 3000),
   // aceita uma lista separada por virgula (ex.: dev local + container do
   // frontend rodando ao mesmo tempo) - um unico valor continua funcionando
-  // igual antes, so vira um array de 1 posicao
-  corsOrigin: (process.env.CORS_ORIGIN ?? '*').split(',').map((origin) => origin.trim()),
+  // igual antes, so vira um array de 1 posicao. Obrigatorio (nao cai pra "*")
+  // pra nunca liberar qualquer origem por esquecimento de configuracao.
+  corsOrigin: required('CORS_ORIGIN')
+    .split(',')
+    .map((origin) => origin.trim()),
 
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '8h',

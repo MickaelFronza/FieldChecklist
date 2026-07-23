@@ -68,6 +68,22 @@ export const syncBatch = asyncHandler(async (req: Request, res: Response) => {
   res.status(202).json({ syncQueueId: syncQueueEntry.id, status: 'pending' });
 });
 
+// o Content-Type do multipart e so o que o cliente declarou (nao prova nada
+// sozinho) - confere os magic bytes de verdade antes de aceitar qualquer
+// arquivo como "foto", pra ninguem conseguir subir um HTML/script disfarcado
+function isValidImageBuffer(buffer: Buffer): boolean {
+  if (buffer.length < 12) return false;
+
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const isPng =
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  const isWebp =
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+  const isHeic = buffer.subarray(4, 8).toString('ascii') === 'ftyp';
+
+  return isJpeg || isPng || isWebp || isHeic;
+}
+
 export const syncPhotos = asyncHandler(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (files.length === 0) {
@@ -75,6 +91,12 @@ export const syncPhotos = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const executionItemIdSchema = z.string().uuid();
+
+  for (const file of files) {
+    if (!isValidImageBuffer(file.buffer)) {
+      throw new ApiError(400, 'Arquivo enviado nao e uma imagem valida');
+    }
+  }
 
   const jobs = await Promise.all(
     files.map((file) => {

@@ -15,9 +15,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { fetchAppSettings, fetchDeviceMonitor, updateAppSettings } from './api';
+import { fetchAppSettings, fetchDeviceMonitor, fetchMinioConsoleToken, updateAppSettings } from './api';
 import { updateUserDevice } from '@/features/users/api';
-import { useAuthStore } from '@/stores/authStore';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -25,9 +24,17 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
 
 export function DeviceMonitorPage() {
   const queryClient = useQueryClient();
-  const accessToken = useAuthStore((state) => state.accessToken);
   const [showMinioConsole, setShowMinioConsole] = useState(false);
   const { data: devices, isLoading } = useQuery({ queryKey: ['admin', 'devices'], queryFn: fetchDeviceMonitor });
+  // token de vida curta (5min), com escopo so pra essa rota - buscado na hora
+  // de abrir o console, nao reaproveita o access token normal na URL do
+  // iframe (ver settings.controller.ts/getMinioConsoleToken)
+  const { data: minioConsoleToken } = useQuery({
+    queryKey: ['admin', 'minio-console-token'],
+    queryFn: fetchMinioConsoleToken,
+    enabled: showMinioConsole,
+    staleTime: 4 * 60 * 1000,
+  });
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['admin', 'settings'],
     queryFn: fetchAppSettings,
@@ -174,10 +181,12 @@ export function DeviceMonitorPage() {
           <Button variant="outlined" onClick={() => setShowMinioConsole(true)}>
             Abrir console do MinIO
           </Button>
+        ) : !minioConsoleToken ? (
+          <LoadingState />
         ) : (
           <Box
             component="iframe"
-            src={`${API_URL}/admin/minio-console/?token=${accessToken}`}
+            src={`${API_URL}/admin/minio-console/?token=${minioConsoleToken}`}
             sx={{ width: '100%', height: 600, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
           />
         )}

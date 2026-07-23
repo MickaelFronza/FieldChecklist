@@ -10,8 +10,15 @@ function triggerDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+// campos que comecem com = + - @ (ou tab/CR) sao interpretados como formula
+// pelo Excel/Sheets ao abrir o CSV ("Formula/CSV Injection") - prefixa com
+// aspas simples pra neutralizar, igual a mitigacao recomendada pela OWASP
+function neutralizeFormula(text: string): string {
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
 function csvEscape(value: string | number): string {
-  const text = String(value);
+  const text = neutralizeFormula(String(value));
   return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

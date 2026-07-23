@@ -92,7 +92,7 @@ services:
         VITE_APK_DOWNLOAD_URL: ${FRONTEND_APK_DOWNLOAD_URL:-}
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       - backend
 

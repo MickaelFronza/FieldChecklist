@@ -1,6 +1,8 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { env } from './config/env';
 import { apiV1Router } from './routes';
@@ -17,6 +19,7 @@ export function createApp(): Express {
 
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigin }));
+  app.use(cookieParser());
 
   // proxy do console web do MinIO (admin-only) - montado ANTES do
   // express.json() pra nao consumir o body da requisicao antes de repassar
@@ -25,10 +28,14 @@ export function createApp(): Express {
   // so acessivel via essa rota, atras de autenticacao de admin. Usa
   // authenticateFromQueryOrHeader (nao o authenticate padrao) porque isso e
   // carregado num <iframe src="...">, e o navegador nao permite anexar um
-  // header Authorization numa navegacao de iframe.
+  // header Authorization numa navegacao de iframe. So a navegacao inicial
+  // carrega ?token= - as chamadas seguintes que o proprio console do MinIO
+  // faz (JS/CSS/API dele) nao tem como carregar esse query param, entao a
+  // authenticateFromQueryOrHeader tambem grava um cookie de curta duracao na
+  // 1a resposta valida, e essas chamadas seguintes se autenticam por ele.
   app.use(
     '/api/v1/admin/minio-console',
-    authenticateFromQueryOrHeader,
+    authenticateFromQueryOrHeader('minio-console'),
     authorize('admin'),
     createProxyMiddleware({
       target: env.minioConsoleUrl,
@@ -44,7 +51,29 @@ export function createApp(): Express {
     res.json({ status: 'ok' });
   });
 
-  app.use('/api/v1', apiV1Router);
+  // limite geral por IP - alem do bloqueio ja existente por email/PIN no
+  // login (que fica por identificador, em Redis), isso cobre qualquer outro
+  // endpoint autenticado contra flood/abuso vindo de um mesmo IP
+  const generalLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    limit: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // login especificamente ganha um limite mais apertado por IP, complementar
+  // ao bloqueio por identificador (email/PIN) que ja existe no controller -
+  // isso cobre um atacante tentando varios identificadores diferentes do
+  // mesmo IP, o que o bloqueio por identificador sozinho nao pega
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use('/api/v1/auth', authLimiter);
+  app.use('/api/v1', generalLimiter, apiV1Router);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
