@@ -18,6 +18,10 @@ SLUG="$1"
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 CLIENT_DIR="$REPO_ROOT/clients/$SLUG"
 
+# shellcheck disable=SC1091
+source "$REPO_ROOT/infra/lib/check-deps.sh"
+check_dependencies
+
 if [ ! -f "$CLIENT_DIR/.env" ]; then
   echo "Cliente '$SLUG' nao encontrado em $CLIENT_DIR" >&2
   exit 1
