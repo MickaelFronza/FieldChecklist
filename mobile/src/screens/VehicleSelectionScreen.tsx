@@ -68,6 +68,24 @@ function formatLastChecklist(lastChecklistAt: string | null | undefined): string
   })}`;
 }
 
+// evita reenvio acidental/repetido do mesmo veiculo logo em seguida - so
+// bloqueia iniciar um checklist NOVO (retomar um em andamento continua
+// liberado, ver handleSelectVehicle) e usa lastChecklistAt (so preenchido
+// quando um checklist e' de fato finalizado), entao nunca bloqueia por causa
+// de uma execucao ainda em aberto
+const COOLDOWN_MS = 15 * 60 * 1000;
+
+function getCooldownRemainingMs(vehicle: Vehicle, now: number): number {
+  if (!vehicle.lastChecklistAt) return 0;
+  const elapsed = now - new Date(vehicle.lastChecklistAt).getTime();
+  return Math.max(0, COOLDOWN_MS - elapsed);
+}
+
+function formatCooldownRemaining(remainingMs: number): string {
+  const minutes = Math.ceil(remainingMs / 60000);
+  return `Enviado recentemente - aguarde ${minutes} min`;
+}
+
 type Props = NativeStackScreenProps<RootStackParamList, 'VehicleSelection'>;
 
 export function VehicleSelectionScreen({ navigation }: Props) {
@@ -83,6 +101,7 @@ export function VehicleSelectionScreen({ navigation }: Props) {
   const [startModal, setStartModal] = useState<{ vehicle: Vehicle; template: ChecklistTemplate } | null>(null);
   const [odometerInput, setOdometerInput] = useState('');
   const [fuelLevel, setFuelLevel] = useState<FuelLevel | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const hasLoadedOnce = useRef(false);
   const isMountedRef = useRef(true);
 
@@ -91,6 +110,13 @@ export function VehicleSelectionScreen({ navigation }: Props) {
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  // atualiza a contagem regressiva do bloqueio de reenvio sem precisar
+  // refazer a busca dos veiculos
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadVehicles = useCallback(async () => {
@@ -173,6 +199,11 @@ export function VehicleSelectionScreen({ navigation }: Props) {
         // back) pra essa tela e reabrir o checklist, deixando responder itens
         // ja confirmados de novo
         navigation.replace('Checklist');
+        return;
+      }
+
+      if (getCooldownRemainingMs(vehicle, Date.now()) > 0) {
+        setError('Esse veículo acabou de receber um checklist. Aguarde alguns minutos antes de enviar outro.');
         return;
       }
 
@@ -287,26 +318,34 @@ export function VehicleSelectionScreen({ navigation }: Props) {
         numColumns={2}
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={{ gap: spacing.md }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.vehicleCard}
-            activeOpacity={0.7}
-            disabled={startingVehicleId !== null}
-            onPress={() => handleSelectVehicle(item)}
-          >
-            {startingVehicleId === item.id ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <>
-                <Text style={styles.vehicleIcon}>{CATEGORY_ICONS[item.category] ?? '🚗'}</Text>
-                <Text style={styles.vehicleCode}>{item.code}</Text>
-                <Text style={styles.vehicleName}>{item.name}</Text>
-                {item.plate && <Text style={styles.vehiclePlate}>{item.plate}</Text>}
-                <Text style={styles.vehicleLastChecklist}>{formatLastChecklist(item.lastChecklistAt)}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const cooldownRemainingMs = getCooldownRemainingMs(item, now);
+          const onCooldown = cooldownRemainingMs > 0;
+          return (
+            <TouchableOpacity
+              style={[styles.vehicleCard, onCooldown && styles.vehicleCardDisabled]}
+              activeOpacity={0.7}
+              disabled={startingVehicleId !== null || onCooldown}
+              onPress={() => handleSelectVehicle(item)}
+            >
+              {startingVehicleId === item.id ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <>
+                  <Text style={styles.vehicleIcon}>{CATEGORY_ICONS[item.category] ?? '🚗'}</Text>
+                  <Text style={styles.vehicleCode}>{item.code}</Text>
+                  <Text style={styles.vehicleName}>{item.name}</Text>
+                  {item.plate && <Text style={styles.vehiclePlate}>{item.plate}</Text>}
+                  {onCooldown ? (
+                    <Text style={styles.vehicleCooldownText}>{formatCooldownRemaining(cooldownRemainingMs)}</Text>
+                  ) : (
+                    <Text style={styles.vehicleLastChecklist}>{formatLastChecklist(item.lastChecklistAt)}</Text>
+                  )}
+                </>
+              )}
+            </TouchableOpacity>
+          );
+        }}
       />
 
       <Modal visible={Boolean(startModal)} transparent animationType="fade" onRequestClose={handleCancelStart}>
@@ -399,6 +438,14 @@ const styles = StyleSheet.create({
   vehicleLastChecklist: {
     fontSize: 11,
     color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  vehicleCardDisabled: { opacity: 0.5 },
+  vehicleCooldownText: {
+    fontSize: 11,
+    color: colors.warning,
+    fontWeight: '700',
     marginTop: spacing.xs,
     textAlign: 'center',
   },
