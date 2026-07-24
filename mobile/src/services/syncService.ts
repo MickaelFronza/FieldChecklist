@@ -34,6 +34,8 @@ async function syncOneExecution(execution: ExecutionRow): Promise<void> {
       completedAt: execution.completed_at,
       startedLat: execution.started_lat,
       startedLng: execution.started_lng,
+      odometerKm: execution.odometer_km,
+      fuelLevel: execution.fuel_level,
     },
     items: items.map((item) => ({
       id: item.id,

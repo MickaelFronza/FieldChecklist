@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS cached_vehicles (
   code TEXT NOT NULL,
   name TEXT NOT NULL,
   type TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'outro',
+  plate TEXT,
   active INTEGER NOT NULL
 );
 
@@ -31,6 +33,8 @@ CREATE TABLE IF NOT EXISTS executions (
   completed_at TEXT,
   started_lat REAL,
   started_lng REAL,
+  odometer_km INTEGER,
+  fuel_level TEXT,
   device_id TEXT NOT NULL,
   app_version TEXT NOT NULL
 );

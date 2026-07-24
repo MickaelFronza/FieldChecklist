@@ -2,7 +2,7 @@ import { createQueue } from './connection';
 import { ChecklistExecution, ExecutionItem, SyncQueue as SyncQueueModel } from '../models';
 import { socketEmitter } from './emitter';
 import { MANAGERS_ROOM } from '../sockets';
-import type { ExecutionStatus, Shift } from '../models/ChecklistExecution';
+import type { ExecutionStatus, FuelLevel, Shift } from '../models/ChecklistExecution';
 import type { ExecutionItemStatus } from '../models/ExecutionItem';
 
 export interface SyncBatchItemPayload {
@@ -29,6 +29,8 @@ export interface SyncBatchJobData {
     completedAt?: string | null;
     startedLat?: number | null;
     startedLng?: number | null;
+    odometerKm?: number | null;
+    fuelLevel?: FuelLevel | null;
   };
   items: SyncBatchItemPayload[];
 }
@@ -51,6 +53,8 @@ syncQueue.process(async (job) => {
       completedAt: execution.completedAt ? new Date(execution.completedAt) : null,
       startedLat: execution.startedLat ?? null,
       startedLng: execution.startedLng ?? null,
+      odometerKm: execution.odometerKm ?? null,
+      fuelLevel: execution.fuelLevel ?? null,
       syncedAt: new Date(),
       deviceId,
       appVersion,

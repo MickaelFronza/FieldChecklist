@@ -9,6 +9,7 @@ import { AuditLog } from './AuditLog';
 import { UserDevice } from './UserDevice';
 import { AppSettings } from './AppSettings';
 import { VehicleOperator } from './VehicleOperator';
+import { VehicleType } from './VehicleType';
 
 ChecklistTemplate.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 
@@ -45,4 +46,5 @@ export {
   UserDevice,
   AppSettings,
   VehicleOperator,
+  VehicleType,
 };

@@ -21,11 +21,15 @@ export interface UserDevice {
   lastSeenAt: string;
 }
 
+export type VehicleCategory = 'carro' | 'onibus' | 'navio' | 'caminhao' | 'trator' | 'moto' | 'outro';
+
 export interface Vehicle {
   id: string;
   code: string;
   name: string;
   type: string;
+  category: VehicleCategory;
+  plate: string | null;
   active: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -87,6 +91,8 @@ export interface ChecklistExecution {
   appVersion: string;
   startedLat: string | null;
   startedLng: string | null;
+  odometerKm: number | null;
+  fuelLevel: 'vazio' | 'quarto' | 'metade' | 'tres_quartos' | 'cheio' | null;
   vehicle?: Vehicle;
   operator?: Pick<User, 'id' | 'name'>;
   items?: ExecutionItem[];

@@ -30,6 +30,22 @@ const STATUS_LABEL: Record<ChecklistExecution['status'], string> = {
   incomplete: 'Incompleto',
 };
 
+const FUEL_LABEL: Record<NonNullable<ChecklistExecution['fuelLevel']>, string> = {
+  vazio: 'Vazio',
+  quarto: '1/4',
+  metade: '1/2',
+  tres_quartos: '3/4',
+  cheio: 'Cheio',
+};
+
+function formatOdometer(execution: ChecklistExecution): string {
+  return execution.odometerKm != null ? `${execution.odometerKm} km` : '—';
+}
+
+function formatFuel(execution: ChecklistExecution): string {
+  return execution.fuelLevel ? FUEL_LABEL[execution.fuelLevel] : '—';
+}
+
 export function ReportsPage() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [operatorId, setOperatorId] = useState('');
@@ -85,12 +101,14 @@ export function ReportsPage() {
                     onClick={() =>
                       downloadCsv(
                         `relatorio-diario-${date}.csv`,
-                        ['Operador', 'Veículo', 'Turno', 'Status'],
+                        ['Operador', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
                         dailyReport.executions.map((execution) => [
                           execution.operator?.name ?? execution.operatorId,
                           execution.vehicle?.name ?? execution.vehicleId,
                           SHIFT_LABEL[execution.shift],
                           STATUS_LABEL[execution.status],
+                          formatOdometer(execution),
+                          formatFuel(execution),
                         ]),
                       )
                     }
@@ -104,12 +122,14 @@ export function ReportsPage() {
                       downloadPdfTable(
                         `relatorio-diario-${date}.pdf`,
                         `Relatório Diário — ${date}`,
-                        ['Operador', 'Veículo', 'Turno', 'Status'],
+                        ['Operador', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
                         dailyReport.executions.map((execution) => [
                           execution.operator?.name ?? execution.operatorId,
                           execution.vehicle?.name ?? execution.vehicleId,
                           SHIFT_LABEL[execution.shift],
                           STATUS_LABEL[execution.status],
+                          formatOdometer(execution),
+                          formatFuel(execution),
                         ]),
                       )
                     }
@@ -126,6 +146,8 @@ export function ReportsPage() {
                         <TableCell>Veículo</TableCell>
                         <TableCell>Turno</TableCell>
                         <TableCell>Status</TableCell>
+                        <TableCell>Odômetro</TableCell>
+                        <TableCell>Combustível</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -137,6 +159,8 @@ export function ReportsPage() {
                           <TableCell>
                             <ExecutionStatusChip status={execution.status} />
                           </TableCell>
+                          <TableCell>{formatOdometer(execution)}</TableCell>
+                          <TableCell>{formatFuel(execution)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -178,12 +202,14 @@ export function ReportsPage() {
                 onClick={() =>
                   downloadCsv(
                     `relatorio-operador-${operatorReport.operator.name}.csv`,
-                    ['Data', 'Veículo', 'Turno', 'Status'],
+                    ['Data', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
                     operatorReport.executions.map((execution) => [
                       new Date(execution.startedAt).toLocaleDateString('pt-BR'),
                       execution.vehicle?.name ?? execution.vehicleId,
                       SHIFT_LABEL[execution.shift],
                       STATUS_LABEL[execution.status],
+                      formatOdometer(execution),
+                      formatFuel(execution),
                     ]),
                   )
                 }
@@ -197,12 +223,14 @@ export function ReportsPage() {
                   downloadPdfTable(
                     `relatorio-operador-${operatorReport.operator.name}.pdf`,
                     `Relatório — ${operatorReport.operator.name}`,
-                    ['Data', 'Veículo', 'Turno', 'Status'],
+                    ['Data', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
                     operatorReport.executions.map((execution) => [
                       new Date(execution.startedAt).toLocaleDateString('pt-BR'),
                       execution.vehicle?.name ?? execution.vehicleId,
                       SHIFT_LABEL[execution.shift],
                       STATUS_LABEL[execution.status],
+                      formatOdometer(execution),
+                      formatFuel(execution),
                     ]),
                   )
                 }
@@ -223,6 +251,8 @@ export function ReportsPage() {
                     <TableCell>Veículo</TableCell>
                     <TableCell>Turno</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Odômetro</TableCell>
+                    <TableCell>Combustível</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -234,6 +264,8 @@ export function ReportsPage() {
                       <TableCell>
                         <ExecutionStatusChip status={execution.status} />
                       </TableCell>
+                      <TableCell>{formatOdometer(execution)}</TableCell>
+                      <TableCell>{formatFuel(execution)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

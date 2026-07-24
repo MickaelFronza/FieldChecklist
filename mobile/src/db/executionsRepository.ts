@@ -3,6 +3,7 @@ import type {
   ChecklistTemplate,
   ExecutionItemStatus,
   ExecutionStatus,
+  FuelLevel,
   Vehicle,
   Shift,
 } from '../types/api';
@@ -20,6 +21,8 @@ export interface ExecutionRow {
   completed_at: string | null;
   started_lat: number | null;
   started_lng: number | null;
+  odometer_km: number | null;
+  fuel_level: FuelLevel | null;
   device_id: string;
   app_version: string;
 }
@@ -82,11 +85,13 @@ export async function cacheVehicles(vehicles: Vehicle[]): Promise<void> {
     await db.runAsync('DELETE FROM cached_vehicles');
     for (const vehicle of vehicles) {
       await db.runAsync(
-        'INSERT INTO cached_vehicles (id, code, name, type, active) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO cached_vehicles (id, code, name, type, category, plate, active) VALUES (?, ?, ?, ?, ?, ?, ?)',
         vehicle.id,
         vehicle.code,
         vehicle.name,
         vehicle.type,
+        vehicle.category,
+        vehicle.plate,
         vehicle.active ? 1 : 0,
       );
     }
@@ -100,6 +105,8 @@ export async function getCachedVehicles(): Promise<Vehicle[]> {
     code: string;
     name: string;
     type: string;
+    category: Vehicle['category'];
+    plate: string | null;
     active: number;
   }>('SELECT * FROM cached_vehicles WHERE active = 1 ORDER BY name ASC');
 
@@ -133,12 +140,52 @@ export async function findOpenExecution(
   return row ?? null;
 }
 
+export interface TodayExecutionSummary {
+  id: string;
+  vehicleName: string;
+  shift: Shift;
+  status: ExecutionStatus;
+  startedAt: string;
+}
+
+// pra mostrar "o que voce ja fez hoje" na tela de sucesso do envio - so local
+// (sem chamada ao backend), ja que o proprio device tem tudo que precisa
+export async function getTodayExecutionsForOperator(
+  operatorId: string,
+  dateISO: string,
+): Promise<TodayExecutionSummary[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{
+    id: string;
+    vehicle_name: string | null;
+    shift: Shift;
+    status: ExecutionStatus;
+    started_at: string;
+  }>(
+    `SELECT e.id, v.name as vehicle_name, e.shift, e.status, e.started_at
+     FROM executions e
+     LEFT JOIN cached_vehicles v ON v.id = e.vehicle_id
+     WHERE e.operator_id = ? AND e.started_at LIKE ? || '%'
+     ORDER BY e.started_at DESC`,
+    operatorId,
+    dateISO,
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    vehicleName: row.vehicle_name ?? 'Veículo',
+    shift: row.shift,
+    status: row.status,
+    startedAt: row.started_at,
+  }));
+}
+
 export async function createExecution(execution: ExecutionRow): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO executions
-      (id, template_id, vehicle_id, operator_id, shift, status, sync_status, started_at, started_lat, started_lng, device_id, app_version)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, template_id, vehicle_id, operator_id, shift, status, sync_status, started_at, started_lat, started_lng, odometer_km, fuel_level, device_id, app_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     execution.id,
     execution.template_id,
     execution.vehicle_id,
@@ -149,6 +196,8 @@ export async function createExecution(execution: ExecutionRow): Promise<void> {
     execution.started_at,
     execution.started_lat,
     execution.started_lng,
+    execution.odometer_km,
+    execution.fuel_level,
     execution.device_id,
     execution.app_version,
   );

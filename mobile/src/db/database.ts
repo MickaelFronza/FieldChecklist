@@ -16,6 +16,10 @@ async function applyIncrementalMigrations(db: SQLite.SQLiteDatabase): Promise<vo
     'ALTER TABLE executions RENAME COLUMN machine_id TO vehicle_id',
     "UPDATE executions SET shift = CASE shift WHEN 'morning' THEN 'manha' WHEN 'afternoon' THEN 'tarde' WHEN 'night' THEN 'noite' ELSE shift END",
     'CREATE INDEX IF NOT EXISTS idx_execution_items_execution_id ON execution_items(execution_id)',
+    "ALTER TABLE cached_vehicles ADD COLUMN category TEXT NOT NULL DEFAULT 'outro'",
+    'ALTER TABLE cached_vehicles ADD COLUMN plate TEXT',
+    'ALTER TABLE executions ADD COLUMN odometer_km INTEGER',
+    'ALTER TABLE executions ADD COLUMN fuel_level TEXT',
   ];
 
   for (const statement of statements) {

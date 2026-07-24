@@ -7,6 +7,7 @@ import type { ExecutionItem } from './ExecutionItem';
 
 export type Shift = 'manha' | 'tarde' | 'noite';
 export type ExecutionStatus = 'in_progress' | 'completed' | 'incomplete';
+export type FuelLevel = 'vazio' | 'quarto' | 'metade' | 'tres_quartos' | 'cheio';
 
 export interface ChecklistExecutionAttributes {
   id: string;
@@ -22,13 +23,15 @@ export interface ChecklistExecutionAttributes {
   appVersion: string;
   startedLat: number | null;
   startedLng: number | null;
+  odometerKm: number | null;
+  fuelLevel: FuelLevel | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export type ChecklistExecutionCreationAttributes = Optional<
   ChecklistExecutionAttributes,
-  'status' | 'completedAt' | 'syncedAt' | 'startedLat' | 'startedLng' | 'createdAt' | 'updatedAt'
+  'status' | 'completedAt' | 'syncedAt' | 'startedLat' | 'startedLng' | 'odometerKm' | 'fuelLevel' | 'createdAt' | 'updatedAt'
 >;
 
 export class ChecklistExecution
@@ -48,6 +51,8 @@ export class ChecklistExecution
   declare appVersion: string;
   declare startedLat: number | null;
   declare startedLng: number | null;
+  declare odometerKm: number | null;
+  declare fuelLevel: FuelLevel | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 
@@ -122,6 +127,16 @@ ChecklistExecution.init(
       type: DataTypes.DECIMAL(10, 7),
       allowNull: true,
       field: 'started_lng',
+    },
+    odometerKm: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'odometer_km',
+    },
+    fuelLevel: {
+      type: DataTypes.ENUM('vazio', 'quarto', 'metade', 'tres_quartos', 'cheio'),
+      allowNull: true,
+      field: 'fuel_level',
     },
     createdAt: {
       type: DataTypes.DATE,

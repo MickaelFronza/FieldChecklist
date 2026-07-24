@@ -22,6 +22,11 @@ const batchSchema = z.object({
     completedAt: z.string().nullable().optional(),
     startedLat: z.number().nullable().optional(),
     startedLng: z.number().nullable().optional(),
+    // opcionais aqui mesmo sendo obrigatorios no app mobile novo - apps ja
+    // instalados antes dessa versao nao mandam esses campos, e o sync deles
+    // nao pode quebrar so por isso (ver migration 20260724100003)
+    odometerKm: z.number().int().min(0).nullable().optional(),
+    fuelLevel: z.enum(['vazio', 'quarto', 'metade', 'tres_quartos', 'cheio']).nullable().optional(),
   }),
   items: z.array(
     z.object({

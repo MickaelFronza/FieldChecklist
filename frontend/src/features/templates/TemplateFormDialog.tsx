@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
   Box,
@@ -11,11 +12,14 @@ import {
   Divider,
   FormControlLabel,
   IconButton,
+  MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import { fetchVehicleTypes } from '@/features/vehicleTypes/api';
+import { ManageVehicleTypesDialog } from '@/components/common/ManageVehicleTypesDialog';
 import type { TemplateItemInput } from './api';
 
 const EMPTY_ITEM: TemplateItemInput = {
@@ -56,6 +60,16 @@ export function TemplateFormDialog({
   const [name, setName] = useState('');
   const [vehicleType, setVehicleType] = useState('');
   const [items, setItems] = useState<TemplateItemInput[]>([{ ...EMPTY_ITEM }]);
+  const [manageTypesOpen, setManageTypesOpen] = useState(false);
+
+  const { data: vehicleTypes } = useQuery({ queryKey: ['vehicle-types'], queryFn: fetchVehicleTypes });
+  // mesma logica de fallback do cadastro de Veiculo - se o tipo salvo nesse
+  // template ja foi excluido da lista gerenciada, ainda precisa aparecer
+  // como opcao aqui pra nao quebrar o Select
+  const typeOptions =
+    vehicleType && !vehicleTypes?.some((type) => type.name === vehicleType)
+      ? [{ id: 'current', name: vehicleType }, ...(vehicleTypes ?? [])]
+      : (vehicleTypes ?? []);
 
   useEffect(() => {
     if (!open) return;
@@ -87,11 +101,22 @@ export function TemplateFormDialog({
           {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
           <TextField label="Nome do Template" required value={name} onChange={(e) => setName(e.target.value)} />
           <TextField
+            select
             label="Tipo de Veículo"
-            placeholder="Trator (vazio = todos)"
+            helperText="Vazio = aplica pra todos os tipos"
             value={vehicleType}
             onChange={(e) => setVehicleType(e.target.value)}
-          />
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {typeOptions.map((type) => (
+              <MenuItem key={type.id} value={type.name}>
+                {type.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button size="small" onClick={() => setManageTypesOpen(true)} sx={{ alignSelf: 'flex-start', mt: -1 }}>
+            Gerenciar tipos
+          </Button>
 
           <Divider />
           <Typography variant="subtitle2">Itens do Checklist</Typography>
@@ -161,6 +186,8 @@ export function TemplateFormDialog({
           </Button>
         </DialogActions>
       </Box>
+
+      <ManageVehicleTypesDialog open={manageTypesOpen} onClose={() => setManageTypesOpen(false)} />
     </Dialog>
   );
 }

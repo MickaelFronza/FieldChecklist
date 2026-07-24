@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
-import type { Vehicle } from '@/types/api';
+import type { Vehicle, VehicleCategory } from '@/types/api';
 
 export async function fetchVehicles(): Promise<Vehicle[]> {
   const { data } = await apiClient.get<Vehicle[]>('/vehicles');
@@ -10,6 +10,8 @@ export interface CreateVehicleInput {
   code: string;
   name: string;
   type: string;
+  category: VehicleCategory;
+  plate?: string | null;
 }
 
 export async function createVehicle(input: CreateVehicleInput): Promise<Vehicle> {
