@@ -15,6 +15,10 @@ export interface Vehicle {
   type: string;
   category: VehicleCategory;
   plate: string | null;
+  // so vem em /vehicles/active (calculados no backend a partir dos
+  // checklists ja enviados) - null se o veiculo nunca teve um checklist
+  latestOdometerKm?: number | null;
+  lastChecklistAt?: string | null;
   active: boolean;
 }
 

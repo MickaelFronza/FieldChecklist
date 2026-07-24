@@ -58,6 +58,16 @@ const FUEL_OPTIONS: { value: FuelLevel; label: string }[] = [
   { value: 'cheio', label: 'Cheio' },
 ];
 
+function formatLastChecklist(lastChecklistAt: string | null | undefined): string {
+  if (!lastChecklistAt) return 'Nenhum checklist enviado ainda';
+  return `Último envio: ${new Date(lastChecklistAt).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
 type Props = NativeStackScreenProps<RootStackParamList, 'VehicleSelection'>;
 
 export function VehicleSelectionScreen({ navigation }: Props) {
@@ -188,10 +198,18 @@ export function VehicleSelectionScreen({ navigation }: Props) {
     setFuelLevel(null);
   };
 
+  // nao deixa cadastrar um odometro menor que o ultimo ja registrado pra
+  // esse veiculo - evita erro de digitacao (esquecer um digito, trocar de
+  // veiculo sem perceber) que bagunça o historico de km rodado
+  const minOdometerKm = startModal?.vehicle.latestOdometerKm ?? null;
+  const odometerTooLow =
+    minOdometerKm != null && odometerInput !== '' && Number(odometerInput) < minOdometerKm;
+
   const handleConfirmStart = async () => {
     if (!startModal || !user) return;
     const odometerKm = Number(odometerInput);
     if (!odometerInput || Number.isNaN(odometerKm) || odometerKm < 0 || !fuelLevel) return;
+    if (minOdometerKm != null && odometerKm < minOdometerKm) return;
 
     const { vehicle, template } = startModal;
     setStartingVehicleId(vehicle.id);
@@ -284,6 +302,7 @@ export function VehicleSelectionScreen({ navigation }: Props) {
                 <Text style={styles.vehicleCode}>{item.code}</Text>
                 <Text style={styles.vehicleName}>{item.name}</Text>
                 {item.plate && <Text style={styles.vehiclePlate}>{item.plate}</Text>}
+                <Text style={styles.vehicleLastChecklist}>{formatLastChecklist(item.lastChecklistAt)}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -300,13 +319,21 @@ export function VehicleSelectionScreen({ navigation }: Props) {
             <Text style={styles.modalSubtitle}>{startModal?.vehicle.name}</Text>
 
             <Text style={styles.modalLabel}>Odômetro (km)</Text>
+            {minOdometerKm != null && (
+              <Text style={styles.modalHint}>Última leitura registrada: {minOdometerKm} km</Text>
+            )}
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, odometerTooLow && styles.modalInputError]}
               keyboardType="numeric"
               placeholder="Ex.: 128500"
               value={odometerInput}
               onChangeText={(text) => setOdometerInput(text.replace(/\D/g, ''))}
             />
+            {odometerTooLow && (
+              <Text style={styles.modalErrorText}>
+                O odômetro não pode ser menor que a última leitura ({minOdometerKm} km).
+              </Text>
+            )}
 
             <Text style={styles.modalLabel}>Combustível</Text>
             <View style={styles.fuelRow}>
@@ -330,10 +357,11 @@ export function VehicleSelectionScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.modalConfirmButton,
-                (!odometerInput || !fuelLevel || startingVehicleId !== null) && styles.disabledButton,
+                (!odometerInput || !fuelLevel || odometerTooLow || startingVehicleId !== null) &&
+                  styles.disabledButton,
               ]}
               activeOpacity={0.7}
-              disabled={!odometerInput || !fuelLevel || startingVehicleId !== null}
+              disabled={!odometerInput || !fuelLevel || odometerTooLow || startingVehicleId !== null}
               onPress={handleConfirmStart}
             >
               {startingVehicleId !== null ? (
@@ -368,6 +396,12 @@ const styles = StyleSheet.create({
   vehicleCode: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.xs },
   vehicleName: { fontSize: 18, fontWeight: '600', textAlign: 'center', color: colors.textPrimary },
   vehiclePlate: { fontSize: 12, color: colors.textSecondary, marginTop: spacing.xs, fontFamily: 'monospace' },
+  vehicleLastChecklist: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -390,6 +424,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   modalLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs },
+  modalHint: { fontSize: 12, color: colors.textSecondary, marginBottom: spacing.xs },
   modalInput: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -399,6 +434,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     color: colors.textPrimary,
   },
+  modalInputError: { borderColor: colors.error, marginBottom: spacing.xs },
+  modalErrorText: { fontSize: 12, color: colors.error, marginBottom: spacing.lg },
   fuelRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.xl, flexWrap: 'wrap' },
   fuelOption: {
     borderWidth: 1,

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { Op, fn, col } from 'sequelize';
+import { fn, col } from 'sequelize';
 import { ChecklistExecution, User, Vehicle, VehicleOperator } from '../models';
 import { redisClient } from '../config/redisClient';
 import { socketEmitter } from '../queues/emitter';
@@ -14,6 +14,38 @@ interface CachedVehicle {
   id: string;
   operators?: { id: string }[];
   [key: string]: unknown;
+}
+
+interface VehicleChecklistStats {
+  latestOdometerKm: number | null;
+  lastChecklistAt: string | null;
+}
+
+// km "atual" e "ultimo envio" de um veiculo nao ficam guardados em lugar
+// nenhum - sao sempre derivados dos checklists dele (maior odometro e maior
+// completedAt ja registrados). Usado na listagem admin (manutencao) e no
+// /vehicles/active pro app mobile (bloquear odometro decrescente + mostrar
+// data do ultimo envio no card do veiculo).
+async function getChecklistStatsByVehicle(): Promise<Map<string, VehicleChecklistStats>> {
+  const rows = (await ChecklistExecution.findAll({
+    attributes: [
+      'vehicleId',
+      [fn('MAX', col('odometer_km')), 'maxOdometerKm'],
+      [fn('MAX', col('completed_at')), 'lastCompletedAt'],
+    ],
+    group: ['vehicleId'],
+    raw: true,
+  })) as unknown as { vehicleId: string; maxOdometerKm: number | null; lastCompletedAt: string | null }[];
+
+  return new Map(
+    rows.map((row) => [
+      row.vehicleId,
+      {
+        latestOdometerKm: row.maxOdometerKm != null ? Number(row.maxOdometerKm) : null,
+        lastChecklistAt: row.lastCompletedAt,
+      },
+    ]),
+  );
 }
 
 export const getActiveVehicles = asyncHandler(async (req: Request, res: Response) => {
@@ -40,32 +72,28 @@ export const getActiveVehicles = asyncHandler(async (req: Request, res: Response
       ? vehicles.filter((v) => v.operators?.some((op) => op.id === req.user!.sub))
       : vehicles;
 
-  res.json(visible.map(({ operators, ...vehicle }) => vehicle));
+  // esses dois campos mudam a cada checklist enviado - nunca ficam no cache
+  // acima (que so guarda o cadastro em si), sempre calculados na hora
+  const statsByVehicle = await getChecklistStatsByVehicle();
+
+  res.json(
+    visible.map(({ operators, ...vehicle }) => ({
+      ...vehicle,
+      latestOdometerKm: statsByVehicle.get(vehicle.id as string)?.latestOdometerKm ?? null,
+      lastChecklistAt: statsByVehicle.get(vehicle.id as string)?.lastChecklistAt ?? null,
+    })),
+  );
 });
-
-// km "atual" de um veiculo nao fica guardado em lugar nenhum - e' sempre o
-// maior odometerKm ja registrado nos checklists dele. Usado tanto na listagem
-// (pra mostrar km desde a ultima manutencao) quanto ao marcar manutencao feita.
-async function getLatestOdometerByVehicle(): Promise<Map<string, number>> {
-  const rows = (await ChecklistExecution.findAll({
-    attributes: ['vehicleId', [fn('MAX', col('odometer_km')), 'maxOdometerKm']],
-    where: { odometerKm: { [Op.ne]: null } },
-    group: ['vehicleId'],
-    raw: true,
-  })) as unknown as { vehicleId: string; maxOdometerKm: number }[];
-
-  return new Map(rows.map((row) => [row.vehicleId, Number(row.maxOdometerKm)]));
-}
 
 export const listVehicles = asyncHandler(async (_req: Request, res: Response) => {
   const vehicles = await Vehicle.findAll({
     include: [{ model: User, as: 'operators', attributes: ['id', 'name'], through: { attributes: [] } }],
     order: [['createdAt', 'DESC']],
   });
-  const latestOdometerByVehicle = await getLatestOdometerByVehicle();
+  const statsByVehicle = await getChecklistStatsByVehicle();
 
   const withMaintenance = vehicles.map((vehicle) => {
-    const latestOdometerKm = latestOdometerByVehicle.get(vehicle.id) ?? null;
+    const { latestOdometerKm = null, lastChecklistAt = null } = statsByVehicle.get(vehicle.id) ?? {};
     const kmSinceLastMaintenance =
       latestOdometerKm != null && vehicle.lastMaintenanceKm != null
         ? latestOdometerKm - vehicle.lastMaintenanceKm
@@ -75,7 +103,7 @@ export const listVehicles = asyncHandler(async (_req: Request, res: Response) =>
       kmSinceLastMaintenance != null &&
       kmSinceLastMaintenance >= vehicle.maintenanceIntervalKm;
 
-    return { ...vehicle.toJSON(), latestOdometerKm, kmSinceLastMaintenance, maintenanceDue };
+    return { ...vehicle.toJSON(), latestOdometerKm, lastChecklistAt, kmSinceLastMaintenance, maintenanceDue };
   });
 
   res.json(withMaintenance);
@@ -142,8 +170,8 @@ export const markMaintenanceDone = asyncHandler(async (req: Request, res: Respon
   const vehicle = await Vehicle.findByPk(req.params.id);
   if (!vehicle) throw new ApiError(404, 'Veiculo nao encontrado');
 
-  const latestOdometerByVehicle = await getLatestOdometerByVehicle();
-  const latestOdometerKm = latestOdometerByVehicle.get(vehicle.id) ?? vehicle.lastMaintenanceKm;
+  const statsByVehicle = await getChecklistStatsByVehicle();
+  const latestOdometerKm = statsByVehicle.get(vehicle.id)?.latestOdometerKm ?? vehicle.lastMaintenanceKm;
 
   await vehicle.update({ lastMaintenanceKm: latestOdometerKm });
   res.json(vehicle);
