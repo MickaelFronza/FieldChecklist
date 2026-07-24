@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import { createQueue } from './connection';
-import { ChecklistExecution, ExecutionItem, SyncQueue as SyncQueueModel } from '../models';
+import { ChecklistExecution, ExecutionItem, SyncQueue as SyncQueueModel, Vehicle } from '../models';
 import { socketEmitter } from './emitter';
 import { MANAGERS_ROOM } from '../sockets';
 import type { ExecutionStatus, FuelLevel, Shift } from '../models/ChecklistExecution';
@@ -126,5 +126,18 @@ syncQueue.process(async (job) => {
   }
   if (hasReusedPhoto) {
     socketEmitter.to(MANAGERS_ROOM).emit('execution:duplicatePhoto', { executionId: execution.id });
+  }
+
+  // so confere manutencao no envio FINAL (nao a cada registro progressivo de
+  // foto, que tambem passa por aqui) - evita alerta repetido varias vezes
+  // durante o mesmo checklist
+  if (execution.status === 'completed' && execution.odometerKm != null) {
+    const vehicle = await Vehicle.findByPk(execution.vehicleId);
+    if (vehicle?.maintenanceIntervalKm != null && vehicle.lastMaintenanceKm != null) {
+      const kmSinceLastMaintenance = execution.odometerKm - vehicle.lastMaintenanceKm;
+      if (kmSinceLastMaintenance >= vehicle.maintenanceIntervalKm) {
+        socketEmitter.to(MANAGERS_ROOM).emit('vehicle:maintenanceDue', { vehicleId: vehicle.id });
+      }
+    }
   }
 });

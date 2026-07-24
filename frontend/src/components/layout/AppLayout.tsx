@@ -78,6 +78,10 @@ export function AppLayout() {
       setAlert({ message: 'Possível foto reaproveitada detectada em um checklist!', severity: 'warning' });
       queryClient.invalidateQueries({ queryKey: ['executions'] });
     };
+    const handleMaintenanceDue = () => {
+      setAlert({ message: 'Um veículo atingiu o intervalo de manutenção preventiva.', severity: 'warning' });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+    };
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
@@ -85,6 +89,7 @@ export function AppLayout() {
     socket.on('execution:alert', handleExecutionAlert);
     socket.on('operator:late', handleOperatorLate);
     socket.on('execution:duplicatePhoto', handleDuplicatePhoto);
+    socket.on('vehicle:maintenanceDue', handleMaintenanceDue);
 
     return () => {
       socket.off('connect', handleConnect);
@@ -93,6 +98,7 @@ export function AppLayout() {
       socket.off('execution:alert', handleExecutionAlert);
       socket.off('operator:late', handleOperatorLate);
       socket.off('execution:duplicatePhoto', handleDuplicatePhoto);
+      socket.off('vehicle:maintenanceDue', handleMaintenanceDue);
     };
   }, [accessToken, queryClient]);
 

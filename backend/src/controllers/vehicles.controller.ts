@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { User, Vehicle, VehicleOperator } from '../models';
+import { Op, fn, col } from 'sequelize';
+import { ChecklistExecution, User, Vehicle, VehicleOperator } from '../models';
 import { redisClient } from '../config/redisClient';
 import { socketEmitter } from '../queues/emitter';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -42,12 +43,42 @@ export const getActiveVehicles = asyncHandler(async (req: Request, res: Response
   res.json(visible.map(({ operators, ...vehicle }) => vehicle));
 });
 
+// km "atual" de um veiculo nao fica guardado em lugar nenhum - e' sempre o
+// maior odometerKm ja registrado nos checklists dele. Usado tanto na listagem
+// (pra mostrar km desde a ultima manutencao) quanto ao marcar manutencao feita.
+async function getLatestOdometerByVehicle(): Promise<Map<string, number>> {
+  const rows = (await ChecklistExecution.findAll({
+    attributes: ['vehicleId', [fn('MAX', col('odometer_km')), 'maxOdometerKm']],
+    where: { odometerKm: { [Op.ne]: null } },
+    group: ['vehicleId'],
+    raw: true,
+  })) as unknown as { vehicleId: string; maxOdometerKm: number }[];
+
+  return new Map(rows.map((row) => [row.vehicleId, Number(row.maxOdometerKm)]));
+}
+
 export const listVehicles = asyncHandler(async (_req: Request, res: Response) => {
   const vehicles = await Vehicle.findAll({
     include: [{ model: User, as: 'operators', attributes: ['id', 'name'], through: { attributes: [] } }],
     order: [['createdAt', 'DESC']],
   });
-  res.json(vehicles);
+  const latestOdometerByVehicle = await getLatestOdometerByVehicle();
+
+  const withMaintenance = vehicles.map((vehicle) => {
+    const latestOdometerKm = latestOdometerByVehicle.get(vehicle.id) ?? null;
+    const kmSinceLastMaintenance =
+      latestOdometerKm != null && vehicle.lastMaintenanceKm != null
+        ? latestOdometerKm - vehicle.lastMaintenanceKm
+        : null;
+    const maintenanceDue =
+      vehicle.maintenanceIntervalKm != null &&
+      kmSinceLastMaintenance != null &&
+      kmSinceLastMaintenance >= vehicle.maintenanceIntervalKm;
+
+    return { ...vehicle.toJSON(), latestOdometerKm, kmSinceLastMaintenance, maintenanceDue };
+  });
+
+  res.json(withMaintenance);
 });
 
 const VEHICLE_CATEGORIES = ['carro', 'onibus', 'navio', 'caminhao', 'trator', 'moto', 'outro'] as const;
@@ -60,6 +91,8 @@ const vehicleSchema = z.object({
   // texto livre - aceita formato antigo (ABC-1234) e Mercosul (BEY-0C83) sem
   // travar num regex unico; nem todo veiculo tem placa nesse padrao
   plate: z.string().max(20).nullable().optional(),
+  // null = manutencao preventiva desligada pra esse veiculo
+  maintenanceIntervalKm: z.number().int().min(1).nullable().optional(),
 });
 
 export const createVehicle = asyncHandler(async (req: Request, res: Response) => {
@@ -103,6 +136,17 @@ export const deleteVehicle = asyncHandler(async (req: Request, res: Response) =>
   await redisClient.del(VEHICLES_CACHE_KEY);
   socketEmitter.emit('vehicle:changed', { vehicleId: vehicle.id });
   res.status(204).send();
+});
+
+export const markMaintenanceDone = asyncHandler(async (req: Request, res: Response) => {
+  const vehicle = await Vehicle.findByPk(req.params.id);
+  if (!vehicle) throw new ApiError(404, 'Veiculo nao encontrado');
+
+  const latestOdometerByVehicle = await getLatestOdometerByVehicle();
+  const latestOdometerKm = latestOdometerByVehicle.get(vehicle.id) ?? vehicle.lastMaintenanceKm;
+
+  await vehicle.update({ lastMaintenanceKm: latestOdometerKm });
+  res.json(vehicle);
 });
 
 const updateVehicleOperatorsSchema = z.object({

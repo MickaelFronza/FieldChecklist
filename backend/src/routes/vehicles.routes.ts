@@ -5,6 +5,7 @@ import {
   deleteVehicle,
   getActiveVehicles,
   listVehicles,
+  markMaintenanceDone,
   updateVehicle,
   updateVehicleOperators,
 } from '../controllers/vehicles.controller';
@@ -16,4 +17,5 @@ vehiclesRoutes.get('/vehicles', authenticate, authorize('admin', 'manager'), lis
 vehiclesRoutes.post('/vehicles', authenticate, authorize('admin', 'manager'), createVehicle);
 vehiclesRoutes.put('/vehicles/:id', authenticate, authorize('admin', 'manager'), updateVehicle);
 vehiclesRoutes.put('/vehicles/:id/operators', authenticate, authorize('admin', 'manager'), updateVehicleOperators);
+vehiclesRoutes.put('/vehicles/:id/maintenance', authenticate, authorize('admin', 'manager'), markMaintenanceDone);
 vehiclesRoutes.delete('/vehicles/:id', authenticate, authorize('admin', 'manager'), deleteVehicle);

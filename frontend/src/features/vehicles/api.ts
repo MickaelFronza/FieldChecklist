@@ -12,6 +12,7 @@ export interface CreateVehicleInput {
   type: string;
   category: VehicleCategory;
   plate?: string | null;
+  maintenanceIntervalKm?: number | null;
 }
 
 export async function createVehicle(input: CreateVehicleInput): Promise<Vehicle> {
@@ -35,4 +36,9 @@ export async function updateVehicleOperators(vehicleId: string, operatorIds: str
 
 export async function deleteVehicle(id: string): Promise<void> {
   await apiClient.delete(`/vehicles/${id}`);
+}
+
+export async function markMaintenanceDone(id: string): Promise<Vehicle> {
+  const { data } = await apiClient.put<Vehicle>(`/vehicles/${id}/maintenance`, {});
+  return data;
 }

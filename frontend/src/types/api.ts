@@ -30,6 +30,13 @@ export interface Vehicle {
   type: string;
   category: VehicleCategory;
   plate: string | null;
+  maintenanceIntervalKm: number | null;
+  lastMaintenanceKm: number | null;
+  // so vem em GET /vehicles (calculado no backend a partir do odometro dos
+  // checklists) - nao existe em outras respostas de veiculo
+  latestOdometerKm?: number | null;
+  kmSinceLastMaintenance?: number | null;
+  maintenanceDue?: boolean;
   active: boolean;
   createdAt?: string;
   updatedAt?: string;

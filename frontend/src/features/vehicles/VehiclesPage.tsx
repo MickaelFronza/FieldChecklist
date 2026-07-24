@@ -26,7 +26,15 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { createVehicle, deleteVehicle, fetchVehicles, updateVehicle, updateVehicleOperators } from './api';
+import BuildIcon from '@mui/icons-material/Build';
+import {
+  createVehicle,
+  deleteVehicle,
+  fetchVehicles,
+  markMaintenanceDone,
+  updateVehicle,
+  updateVehicleOperators,
+} from './api';
 import { fetchUsers } from '@/features/users/api';
 import { fetchVehicleTypes } from '@/features/vehicleTypes/api';
 import { LoadingState } from '@/components/common/LoadingState';
@@ -66,7 +74,14 @@ export function VehiclesPage() {
 
   const [manageTypesOpen, setManageTypesOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ code: '', name: '', type: '', category: 'outro' as VehicleCategory, plate: '' });
+  const [form, setForm] = useState({
+    code: '',
+    name: '',
+    type: '',
+    category: 'outro' as VehicleCategory,
+    plate: '',
+    maintenanceIntervalKm: '',
+  });
   const [formOperators, setFormOperators] = useState<OperatorOption[]>([]);
 
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -76,6 +91,7 @@ export function VehiclesPage() {
     type: '',
     category: 'outro' as VehicleCategory,
     plate: '',
+    maintenanceIntervalKm: '',
   });
   const [editOperators, setEditOperators] = useState<OperatorOption[]>([]);
 
@@ -87,12 +103,17 @@ export function VehiclesPage() {
       type: editingVehicle?.type ?? '',
       category: editingVehicle?.category ?? 'outro',
       plate: editingVehicle?.plate ?? '',
+      maintenanceIntervalKm: editingVehicle?.maintenanceIntervalKm?.toString() ?? '',
     });
   }, [editingVehicle]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const vehicle = await createVehicle({ ...form, plate: form.plate.trim() || null });
+      const vehicle = await createVehicle({
+        ...form,
+        plate: form.plate.trim() || null,
+        maintenanceIntervalKm: form.maintenanceIntervalKm ? Number(form.maintenanceIntervalKm) : null,
+      });
       if (formOperators.length > 0) {
         await updateVehicleOperators(
           vehicle.id,
@@ -103,7 +124,7 @@ export function VehiclesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       setDialogOpen(false);
-      setForm({ code: '', name: '', type: '', category: 'outro', plate: '' });
+      setForm({ code: '', name: '', type: '', category: 'outro', plate: '', maintenanceIntervalKm: '' });
       setFormOperators([]);
     },
   });
@@ -116,7 +137,11 @@ export function VehiclesPage() {
   const editMutation = useMutation({
     mutationFn: async () => {
       if (!editingVehicle) return;
-      await updateVehicle(editingVehicle.id, { ...editForm, plate: editForm.plate.trim() || null });
+      await updateVehicle(editingVehicle.id, {
+        ...editForm,
+        plate: editForm.plate.trim() || null,
+        maintenanceIntervalKm: editForm.maintenanceIntervalKm ? Number(editForm.maintenanceIntervalKm) : null,
+      });
       await updateVehicleOperators(
         editingVehicle.id,
         editOperators.map((operator) => operator.id),
@@ -132,6 +157,19 @@ export function VehiclesPage() {
     mutationFn: deleteVehicle,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
   });
+
+  const maintenanceDoneMutation = useMutation({
+    mutationFn: markMaintenanceDone,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+    onError: (error) => window.alert(getMutationErrorMessage(error)),
+  });
+
+  const handleMarkMaintenanceDone = (vehicle: Vehicle) => {
+    if (!window.confirm(`Marcar manutenção feita agora pra "${vehicle.name}" (${vehicle.latestOdometerKm ?? 0} km)?`)) {
+      return;
+    }
+    maintenanceDoneMutation.mutate(vehicle.id);
+  };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -200,6 +238,7 @@ export function VehiclesPage() {
                 <TableCell>Placa</TableCell>
                 <TableCell>Tipo</TableCell>
                 <TableCell>Operadores responsáveis</TableCell>
+                <TableCell>Manutenção</TableCell>
                 <TableCell>Ativo</TableCell>
                 <TableCell align="right">Ações</TableCell>
               </TableRow>
@@ -228,12 +267,36 @@ export function VehiclesPage() {
                     )}
                   </TableCell>
                   <TableCell>
+                    {vehicle.maintenanceIntervalKm == null ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Desligada
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">
+                          {vehicle.kmSinceLastMaintenance ?? 0} / {vehicle.maintenanceIntervalKm} km
+                        </Typography>
+                        {vehicle.maintenanceDue && <Chip size="small" color="warning" label="Vencida" />}
+                      </Box>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Switch
                       checked={vehicle.active}
                       onChange={(event) => toggleActiveMutation.mutate({ id: vehicle.id, active: event.target.checked })}
                     />
                   </TableCell>
                   <TableCell align="right">
+                    {vehicle.maintenanceIntervalKm != null && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleMarkMaintenanceDone(vehicle)}
+                        disabled={maintenanceDoneMutation.isPending}
+                        title="Marcar manutenção feita"
+                      >
+                        <BuildIcon fontSize="small" />
+                      </IconButton>
+                    )}
                     <IconButton size="small" onClick={() => setEditingVehicle(vehicle)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
@@ -302,6 +365,13 @@ export function VehiclesPage() {
               placeholder="ABC-1234 ou BEY-0C83"
               value={form.plate}
               onChange={(event) => setForm({ ...form, plate: event.target.value.toUpperCase() })}
+            />
+            <TextField
+              label="Intervalo de manutenção (km)"
+              type="number"
+              placeholder="Ex.: 10000 (vazio = desligada)"
+              value={form.maintenanceIntervalKm}
+              onChange={(event) => setForm({ ...form, maintenanceIntervalKm: event.target.value })}
             />
             <Autocomplete
               multiple
@@ -377,6 +447,13 @@ export function VehiclesPage() {
               placeholder="ABC-1234 ou BEY-0C83"
               value={editForm.plate}
               onChange={(event) => setEditForm({ ...editForm, plate: event.target.value.toUpperCase() })}
+            />
+            <TextField
+              label="Intervalo de manutenção (km)"
+              type="number"
+              placeholder="Ex.: 10000 (vazio = desligada)"
+              value={editForm.maintenanceIntervalKm}
+              onChange={(event) => setEditForm({ ...editForm, maintenanceIntervalKm: event.target.value })}
             />
             <Autocomplete
               multiple

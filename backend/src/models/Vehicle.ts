@@ -13,6 +13,11 @@ export interface VehicleAttributes {
   type: string;
   category: VehicleCategory;
   plate: string | null;
+  // null = manutencao preventiva desligada pra esse veiculo. km "atual" nao
+  // fica aqui - e' calculado a partir do maior odometerKm ja registrado nos
+  // checklists desse veiculo (ver vehicles.controller.ts)
+  maintenanceIntervalKm: number | null;
+  lastMaintenanceKm: number | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -20,7 +25,14 @@ export interface VehicleAttributes {
 
 export type VehicleCreationAttributes = Optional<
   VehicleAttributes,
-  'id' | 'category' | 'plate' | 'active' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'category'
+  | 'plate'
+  | 'maintenanceIntervalKm'
+  | 'lastMaintenanceKm'
+  | 'active'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 export class Vehicle extends Model<VehicleAttributes, VehicleCreationAttributes> implements VehicleAttributes {
@@ -30,6 +42,8 @@ export class Vehicle extends Model<VehicleAttributes, VehicleCreationAttributes>
   declare type: string;
   declare category: VehicleCategory;
   declare plate: string | null;
+  declare maintenanceIntervalKm: number | null;
+  declare lastMaintenanceKm: number | null;
   declare active: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -63,6 +77,16 @@ Vehicle.init(
     plate: {
       type: DataTypes.STRING(20),
       allowNull: true,
+    },
+    maintenanceIntervalKm: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'maintenance_interval_km',
+    },
+    lastMaintenanceKm: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'last_maintenance_km',
     },
     active: {
       type: DataTypes.BOOLEAN,
