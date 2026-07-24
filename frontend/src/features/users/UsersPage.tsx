@@ -26,6 +26,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { createUser, deleteUser, fetchUsers, updateUser, type CreatableRole } from './api';
 import { UserDevicesDialog } from './UserDevicesDialog';
+import { fetchOperatorReport } from '@/features/reports/api';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useAuthStore } from '@/stores/authStore';
@@ -66,6 +67,13 @@ export function UsersPage() {
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
+
+  const [lastChecklistUser, setLastChecklistUser] = useState<User | null>(null);
+  const { data: lastChecklistReport, isLoading: loadingLastChecklist } = useQuery({
+    queryKey: ['reports', 'operator', lastChecklistUser?.id],
+    queryFn: () => fetchOperatorReport(lastChecklistUser!.id),
+    enabled: Boolean(lastChecklistUser),
+  });
 
   const createMutation = useMutation({
     mutationFn: createUser,
@@ -232,6 +240,11 @@ export function UsersPage() {
                         Ver aparelhos
                       </Button>
                     )}
+                    {user.role === 'operator' && (
+                      <Button size="small" onClick={() => setLastChecklistUser(user)}>
+                        Último checklist
+                      </Button>
+                    )}
                     <IconButton size="small" onClick={() => handleOpenEdit(user)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
@@ -364,6 +377,42 @@ export function UsersPage() {
           onClose={() => setDevicesUser(null)}
         />
       )}
+
+      <Dialog open={Boolean(lastChecklistUser)} onClose={() => setLastChecklistUser(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Último checklist — {lastChecklistUser?.name}</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {loadingLastChecklist ? (
+            <LoadingState />
+          ) : !lastChecklistReport?.executions.length ? (
+            <EmptyState message="Nenhum checklist enviado por esse operador ainda." />
+          ) : (
+            (() => {
+              const last = lastChecklistReport.executions[0];
+              return (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography>
+                    <strong>Veículo:</strong> {last.vehicle?.name ?? last.vehicleId}
+                  </Typography>
+                  <Typography>
+                    <strong>Iniciado em:</strong> {new Date(last.startedAt).toLocaleString('pt-BR')}
+                  </Typography>
+                  <Typography>
+                    <strong>Enviado em:</strong>{' '}
+                    {last.syncedAt
+                      ? new Date(last.syncedAt).toLocaleString('pt-BR')
+                      : last.status === 'in_progress'
+                        ? 'Ainda em andamento'
+                        : 'Aguardando confirmação de envio'}
+                  </Typography>
+                </Box>
+              );
+            })()
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLastChecklistUser(null)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

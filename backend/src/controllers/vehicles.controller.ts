@@ -29,13 +29,14 @@ export const getActiveVehicles = asyncHandler(async (req: Request, res: Response
     await redisClient.set(VEHICLES_CACHE_KEY, JSON.stringify(vehicles), 'EX', VEHICLES_CACHE_TTL_SECONDS);
   }
 
-  // operador so ve veiculo sem nenhum responsavel definido (livre pra
-  // qualquer um) ou onde ele proprio esta na lista de responsaveis; admin/
-  // manager sempre veem tudo (nao usam essa rota pra decidir o que aparece
-  // pra si mesmos, so pra cadastro/relatorio)
+  // operador so ve veiculo onde ele esta explicitamente na lista de
+  // responsaveis - sem responsavel nenhum definido = invisivel pra todo
+  // mundo ate alguem cadastrar (nao "livre pra qualquer um"). admin/manager
+  // sempre veem tudo (nao usam essa rota pra decidir o que aparece pra si
+  // mesmos, so pra cadastro/relatorio)
   const visible =
     req.user!.role === 'operator'
-      ? vehicles.filter((v) => !v.operators?.length || v.operators.some((op) => op.id === req.user!.sub))
+      ? vehicles.filter((v) => v.operators?.some((op) => op.id === req.user!.sub))
       : vehicles;
 
   res.json(visible.map(({ operators, ...vehicle }) => vehicle));
