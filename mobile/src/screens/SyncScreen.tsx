@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChecklistStore } from '../stores/checklistStore';
 import { useAuthStore } from '../stores/authStore';
@@ -71,9 +71,18 @@ export function SyncScreen({ navigation }: Props) {
   };
 
   const handleExitApp = () => {
-    reset();
-    disconnectSocket();
-    logout();
+    Alert.alert('Sair do aplicativo?', 'Você precisará fazer login de novo (PIN) na próxima vez.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: () => {
+          reset();
+          disconnectSocket();
+          logout();
+        },
+      },
+    ]);
   };
 
   return (

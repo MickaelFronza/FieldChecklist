@@ -20,6 +20,7 @@ async function applyIncrementalMigrations(db: SQLite.SQLiteDatabase): Promise<vo
     'ALTER TABLE cached_vehicles ADD COLUMN plate TEXT',
     'ALTER TABLE executions ADD COLUMN odometer_km INTEGER',
     'ALTER TABLE executions ADD COLUMN fuel_level TEXT',
+    'ALTER TABLE execution_items ADD COLUMN photo_synced INTEGER NOT NULL DEFAULT 0',
   ];
 
   for (const statement of statements) {

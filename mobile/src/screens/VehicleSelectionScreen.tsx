@@ -230,6 +230,7 @@ export function VehicleSelectionScreen({ navigation }: Props) {
           justification: null,
           photo_uri: null,
           photo_hash: null,
+          photo_synced: false,
           marked_at: null,
         });
       }

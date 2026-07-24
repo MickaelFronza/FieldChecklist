@@ -5,9 +5,10 @@ import {
   type ExecutionRow,
   deleteExecutionAndItems,
   getExecutionItems,
+  getItemsWithUnsyncedPhotos,
   listPendingSyncExecutions,
   markExecutionSyncStatus,
-  markItemPhotoSynced,
+  markPhotoUploaded,
 } from '../db/executionsRepository';
 
 interface SyncBatchResponse {
@@ -49,9 +50,12 @@ async function syncOneExecution(execution: ExecutionRow): Promise<void> {
 
   await markExecutionSyncStatus(execution.id, 'syncing', data.syncQueueId);
 
-  const itemsWithPhotos = items.filter((item) => item.photo_uri);
-  if (itemsWithPhotos.length > 0) {
-    await uploadPhotos(itemsWithPhotos);
+  // a maioria das fotos ja deve ter subido em segundo plano durante o
+  // checklist (ver uploadPhotoInBackground) - isso aqui e' so uma rede de
+  // seguranca pras que ainda nao confirmaram (ex.: tiradas sem internet)
+  const itemsWithUnsyncedPhotos = items.filter((item) => item.photo_uri && !item.photo_synced);
+  if (itemsWithUnsyncedPhotos.length > 0) {
+    await uploadPhotos(itemsWithUnsyncedPhotos);
   }
 
   const done = await waitForSyncDone(execution.id);
@@ -80,13 +84,41 @@ async function uploadPhotos(items: ExecutionItemRow[]): Promise<void> {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-  // marca como enviado assim que o backend confirma o enfileiramento -
-  // antes disso, um retry (ex.: se waitForSyncDone expirar e o item voltar
-  // pra 'pending') reenviaria as mesmas fotos do zero
+  // marca como enviado assim que o backend confirma o enfileiramento - antes
+  // disso, um retry reenviaria a mesma foto do zero. NAO apaga photo_uri
+  // (precisa continuar disponivel pro preview local enquanto o checklist
+  // ainda esta em andamento).
   for (const item of items) {
     if (item.photo_uri) {
-      await markItemPhotoSynced(item.id);
+      await markPhotoUploaded(item.id);
     }
+  }
+}
+
+// disparado assim que uma foto e' tirada (ChecklistScreen), sem bloquear a
+// tela - o objetivo e' que a maior parte das fotos ja esteja no servidor
+// antes do operador terminar o checklist, pra "Enviar" no final ser rapido
+// (so o texto das respostas) em vez de subir tudo de uma vez ali. Falha
+// silenciosamente (offline, etc.) - o retry periodico em segundo plano
+// (ver backgroundSync.ts) e o proprio envio final pegam o que sobrar.
+export async function uploadPhotoInBackground(item: ExecutionItemRow): Promise<void> {
+  try {
+    await uploadPhotos([item]);
+  } catch {
+    // sem problema - fica pendente ate o proximo retry
+  }
+}
+
+// retry periodico de fotos que ainda nao confirmaram upload, de qualquer
+// checklist em andamento (nao so os ja finalizados) - cobre o caso de uma
+// foto tirada offline, que o uploadPhotoInBackground na hora nao conseguiu
+export async function syncPendingPhotos(): Promise<void> {
+  const items = await getItemsWithUnsyncedPhotos();
+  if (items.length === 0) return;
+  try {
+    await uploadPhotos(items);
+  } catch {
+    // tenta de novo no proximo ciclo
   }
 }
 

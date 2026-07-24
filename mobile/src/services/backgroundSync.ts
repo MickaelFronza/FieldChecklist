@@ -2,12 +2,13 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import { listPendingSyncExecutions } from '../db/executionsRepository';
 import { useNetworkStore } from '../lib/network';
-import { syncPendingExecutions } from './syncService';
+import { syncPendingExecutions, syncPendingPhotos } from './syncService';
 
 const SYNC_TASK_NAME = 'field-checklist-background-sync';
 
 TaskManager.defineTask(SYNC_TASK_NAME, async () => {
   try {
+    await syncPendingPhotos();
     await syncPendingExecutions();
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch {
@@ -39,6 +40,11 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function tick(): Promise<void> {
   if (useNetworkStore.getState().isOnline) {
+    // fotos pendentes existem mesmo em checklists AINDA EM ANDAMENTO (nao so
+    // nos ja finalizados que listPendingSyncExecutions cobre), entao rodam
+    // sempre que online, sem depender de ter execucao completa pendente
+    await syncPendingPhotos().catch(() => {});
+
     const before = await listPendingSyncExecutions();
     if (before.length > 0) {
       await syncPendingExecutions();

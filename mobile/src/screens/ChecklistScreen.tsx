@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChecklistStore } from '../stores/checklistStore';
 import { upsertExecutionItem, type ExecutionItemRow } from '../db/executionsRepository';
+import { uploadPhotoInBackground } from '../services/syncService';
 import { colors, radius, shadow, spacing } from '../theme';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -117,10 +118,17 @@ export function ChecklistScreen({ navigation }: Props) {
     const destination = `${dir}${executionItem.id}.jpg`;
     await FileSystem.copyAsync({ from: photo.uri, to: destination });
 
-    const updated: ExecutionItemRow = { ...executionItem, photo_uri: destination };
+    // photo_synced:false mesmo se essa foto estiver substituindo uma ja
+    // enviada (retake) - a nova precisa subir de novo, nao pode ficar
+    // marcada como sincronizada so por causa da foto antiga
+    const updated: ExecutionItemRow = { ...executionItem, photo_uri: destination, photo_synced: false };
     await upsertExecutionItem(updated);
     updateItem(updated);
     setMode('view');
+
+    // dispara o upload em segundo plano, sem bloquear a tela - o operador
+    // segue pro proximo item na hora, a foto sobe por conta propria
+    uploadPhotoInBackground(updated).catch(() => {});
   };
 
   const handleConfirmOk = () => persistAndAdvance('ok', null);

@@ -35,6 +35,10 @@ export interface ExecutionItemRow {
   justification: string | null;
   photo_uri: string | null;
   photo_hash: string | null;
+  // true so depois que a foto sobe pro servidor com sucesso - independente
+  // de photo_uri, que fica preenchido ate o checklist inteiro ser finalizado
+  // e limpo (photo_uri e' pro preview local, photo_synced e' pro sync)
+  photo_synced: boolean;
   marked_at: string | null;
 }
 
@@ -203,12 +207,27 @@ export async function createExecution(execution: ExecutionRow): Promise<void> {
   );
 }
 
+type ExecutionItemDbRow = Omit<ExecutionItemRow, 'photo_synced'> & { photo_synced: number };
+
 export async function getExecutionItems(executionId: string): Promise<ExecutionItemRow[]> {
   const db = await getDatabase();
-  return db.getAllAsync<ExecutionItemRow>(
+  const rows = await db.getAllAsync<ExecutionItemDbRow>(
     'SELECT * FROM execution_items WHERE execution_id = ?',
     executionId,
   );
+  return rows.map((row) => ({ ...row, photo_synced: Boolean(row.photo_synced) }));
+}
+
+// itens com foto local ainda nao confirmada no servidor, de qualquer
+// execucao - usado pelo loop de retry em segundo plano pra pegar fotos que
+// falharam no upload imediato (ex.: tiradas offline) sem precisar esperar o
+// checklist inteiro terminar
+export async function getItemsWithUnsyncedPhotos(): Promise<ExecutionItemRow[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<ExecutionItemDbRow>(
+    'SELECT * FROM execution_items WHERE photo_uri IS NOT NULL AND photo_synced = 0',
+  );
+  return rows.map((row) => ({ ...row, photo_synced: Boolean(row.photo_synced) }));
 }
 
 export async function upsertExecutionItem(item: ExecutionItemRow): Promise<void> {
@@ -221,20 +240,21 @@ export async function upsertExecutionItem(item: ExecutionItemRow): Promise<void>
   if (existing) {
     await db.runAsync(
       `UPDATE execution_items
-       SET status = ?, justification = ?, photo_uri = ?, photo_hash = ?, marked_at = ?
+       SET status = ?, justification = ?, photo_uri = ?, photo_hash = ?, photo_synced = ?, marked_at = ?
        WHERE id = ?`,
       item.status,
       item.justification,
       item.photo_uri,
       item.photo_hash,
+      item.photo_synced ? 1 : 0,
       item.marked_at,
       item.id,
     );
   } else {
     await db.runAsync(
       `INSERT INTO execution_items
-        (id, execution_id, template_item_id, status, justification, photo_uri, photo_hash, marked_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, execution_id, template_item_id, status, justification, photo_uri, photo_hash, photo_synced, marked_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       item.id,
       item.execution_id,
       item.template_item_id,
@@ -242,6 +262,7 @@ export async function upsertExecutionItem(item: ExecutionItemRow): Promise<void>
       item.justification,
       item.photo_uri,
       item.photo_hash,
+      item.photo_synced ? 1 : 0,
       item.marked_at,
     );
   }
@@ -277,9 +298,13 @@ export async function markExecutionSyncStatus(
   );
 }
 
-export async function markItemPhotoSynced(itemId: string): Promise<void> {
+// so marca como enviada (photo_synced=1) - NAO apaga photo_uri, que continua
+// necessario pro preview local ate o checklist inteiro ser finalizado e
+// limpo (deleteExecutionAndItems). Retomar uma foto ja enviada (retake) deve
+// resetar isso pra 0 de novo - ver ChecklistScreen.handleTakePhoto.
+export async function markPhotoUploaded(itemId: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync('UPDATE execution_items SET photo_uri = NULL WHERE id = ?', itemId);
+  await db.runAsync('UPDATE execution_items SET photo_synced = 1 WHERE id = ?', itemId);
 }
 
 export async function deleteExecutionAndItems(executionId: string): Promise<void> {

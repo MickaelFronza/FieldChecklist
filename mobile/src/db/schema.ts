@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS execution_items (
   justification TEXT,
   photo_uri TEXT,
   photo_hash TEXT,
+  photo_synced INTEGER NOT NULL DEFAULT 0,
   marked_at TEXT,
   FOREIGN KEY (execution_id) REFERENCES executions (id)
 );
