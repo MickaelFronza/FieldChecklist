@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
@@ -14,12 +24,40 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Checklist'>;
 type ScreenMode = 'view' | 'camera' | 'justification';
 
 export function ChecklistScreen({ navigation }: Props) {
-  const { template, items, currentIndex, updateItem, goNext } = useChecklistStore();
+  const { template, items, currentIndex, updateItem, goNext, reset } = useChecklistStore();
   const [permission, requestPermission] = useCameraPermissions();
   const [mode, setMode] = useState<ScreenMode>('view');
   const [pendingStatus, setPendingStatus] = useState<'non_conformant' | 'not_applicable' | null>(null);
   const [justification, setJustification] = useState('');
   const cameraRef = useRef<CameraView>(null);
+
+  // unica forma de sair do checklist em andamento - sem isso o operador so
+  // tinha o botao fisico/gesto de voltar do Android, que (antes desse ajuste)
+  // reabria o ultimo item ja respondido em vez de sair de verdade. O
+  // progresso ja esta salvo localmente a cada item (upsertExecutionItem) -
+  // reset() so limpa a tela atual - retomar depois volta exatamente no
+  // primeiro item pendente (ver checklistStore.start)
+  const handleExit = () => {
+    Alert.alert('Sair do checklist?', 'Seu progresso já está salvo. Você pode continuar depois de onde parou.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: () => {
+          reset();
+          navigation.replace('VehicleSelection');
+        },
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleExit();
+      return true;
+    });
+    return () => subscription.remove();
+  }, []);
 
   const templateItem = template?.items[currentIndex];
   const executionItem = useMemo(
@@ -110,6 +148,9 @@ export function ChecklistScreen({ navigation }: Props) {
     return (
       <View style={{ flex: 1 }}>
         <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+        <TouchableOpacity style={styles.exitButtonCamera} activeOpacity={0.7} onPress={handleExit}>
+          <Text style={styles.exitButtonCameraText}>Sair</Text>
+        </TouchableOpacity>
         <View style={styles.cameraOverlay}>
           <Text style={styles.cameraTitle}>{templateItem.title}</Text>
           <TouchableOpacity style={styles.shutterButton} activeOpacity={0.7} onPress={handleTakePhoto}>
@@ -123,6 +164,9 @@ export function ChecklistScreen({ navigation }: Props) {
   if (mode === 'justification') {
     return (
       <View style={styles.container}>
+        <TouchableOpacity style={styles.exitButton} activeOpacity={0.6} onPress={handleExit}>
+          <Text style={styles.exitButtonText}>Sair</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>{templateItem.title}</Text>
         <Text style={styles.subtitle}>
           {pendingStatus === 'non_conformant' ? 'Por que não está conforme?' : 'Por que não se aplica?'}
@@ -151,6 +195,9 @@ export function ChecklistScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.exitButton} activeOpacity={0.6} onPress={handleExit}>
+        <Text style={styles.exitButtonText}>Sair</Text>
+      </TouchableOpacity>
       <View style={styles.progressBarTrack}>
         <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
       </View>
@@ -193,6 +240,18 @@ export function ChecklistScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: spacing.xl, paddingTop: 56, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl },
+  exitButton: { alignSelf: 'flex-end', marginBottom: spacing.md },
+  exitButtonText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
+  exitButtonCamera: {
+    position: 'absolute',
+    top: 48,
+    right: spacing.lg,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.overlay,
+  },
+  exitButtonCameraText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   progressBarTrack: { height: 8, backgroundColor: colors.border, borderRadius: radius.pill, overflow: 'hidden' },
   progressBarFill: { height: 8, backgroundColor: colors.primary, borderRadius: radius.pill },
   progressLabel: { textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.xl, color: colors.textSecondary, fontSize: 14 },

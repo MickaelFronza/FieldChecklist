@@ -28,8 +28,11 @@ export function RootNavigator() {
         ) : (
           <>
             <Stack.Screen name="VehicleSelection" component={VehicleSelectionScreen} />
-            <Stack.Screen name="Checklist" component={ChecklistScreen} />
-            <Stack.Screen name="Summary" component={SummaryScreen} />
+            {/* gestureEnabled:false - impede voltar por gesto/swipe pro item
+                anterior ja respondido; o unico jeito de sair fica sendo o
+                botao explicito "Sair" de cada tela (ver handleExit) */}
+            <Stack.Screen name="Checklist" component={ChecklistScreen} options={{ gestureEnabled: false }} />
+            <Stack.Screen name="Summary" component={SummaryScreen} options={{ gestureEnabled: false }} />
             <Stack.Screen name="Sync" component={SyncScreen} />
           </>
         )}
