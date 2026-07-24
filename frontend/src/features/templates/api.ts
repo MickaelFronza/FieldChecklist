@@ -35,3 +35,7 @@ export async function updateTemplate(id: string, input: UpdateTemplateInput): Pr
   const { data } = await apiClient.put<ChecklistTemplate>(`/templates/${id}`, input);
   return data;
 }
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await apiClient.delete(`/templates/${id}`);
+}

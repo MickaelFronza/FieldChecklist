@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -14,7 +15,8 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { createTemplate, fetchTemplates, updateTemplate } from './api';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { createTemplate, deleteTemplate, fetchTemplates, updateTemplate } from './api';
 import { TemplateFormDialog, type TemplateFormValues } from './TemplateFormDialog';
 import { LoadingState } from '@/components/common/LoadingState';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -50,6 +52,19 @@ export function TemplatesPage() {
       setVersioningTemplate(null);
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteTemplate,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates'] }),
+    onError: (error) => window.alert(getMutationErrorMessage(error)),
+  });
+
+  const handleDelete = (template: ChecklistTemplate) => {
+    if (!window.confirm(`Excluir o template "${template.name}" (v${template.version})? Isso não pode ser desfeito.`)) {
+      return;
+    }
+    deleteMutation.mutate(template.id);
+  };
 
   return (
     <Box>
@@ -104,6 +119,9 @@ export function TemplatesPage() {
                         Nova Versão
                       </Button>
                     )}
+                    <IconButton size="small" onClick={() => handleDelete(template)} disabled={deleteMutation.isPending}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}

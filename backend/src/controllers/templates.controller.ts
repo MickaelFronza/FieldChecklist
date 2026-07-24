@@ -115,3 +115,17 @@ export const updateTemplate = asyncHandler(async (req: Request, res: Response) =
   await invalidateTemplatesCache();
   res.json(template);
 });
+
+export const deleteTemplate = asyncHandler(async (req: Request, res: Response) => {
+  const template = await ChecklistTemplate.findByPk(req.params.id);
+  if (!template) throw new ApiError(404, 'Template nao encontrado');
+
+  // se algum checklist ja foi executado com esse template (ou com essa
+  // versao), TemplateItem/ChecklistTemplate ficam protegidos pela FK sem
+  // onDelete e isso vira um 409 claro via errorHandler, em vez de apagar
+  // dado que um checklist ja executado referencia pra auditoria
+  await TemplateItem.destroy({ where: { templateId: template.id } });
+  await template.destroy();
+  await invalidateTemplatesCache();
+  res.status(204).send();
+});
