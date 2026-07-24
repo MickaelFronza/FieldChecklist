@@ -71,6 +71,7 @@ export interface ExecutionItem {
   justification: string | null;
   photoKey: string | null;
   photoHash: string | null;
+  photoReused: boolean;
   photoUrl?: string | null;
   markedAt: string | null;
   syncedAt: string | null;

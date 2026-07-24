@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   Button,
+  Chip,
   MenuItem,
   Paper,
   Stack,
@@ -44,6 +45,10 @@ function formatOdometer(execution: ChecklistExecution): string {
 
 function formatFuel(execution: ChecklistExecution): string {
   return execution.fuelLevel ? FUEL_LABEL[execution.fuelLevel] : '—';
+}
+
+function hasReusedPhoto(execution: ChecklistExecution): boolean {
+  return Boolean(execution.items?.some((item) => item.photoReused));
 }
 
 export function ReportsPage() {
@@ -101,7 +106,7 @@ export function ReportsPage() {
                     onClick={() =>
                       downloadCsv(
                         `relatorio-diario-${date}.csv`,
-                        ['Operador', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
+                        ['Operador', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível', 'Foto suspeita'],
                         dailyReport.executions.map((execution) => [
                           execution.operator?.name ?? execution.operatorId,
                           execution.vehicle?.name ?? execution.vehicleId,
@@ -109,6 +114,7 @@ export function ReportsPage() {
                           STATUS_LABEL[execution.status],
                           formatOdometer(execution),
                           formatFuel(execution),
+                          hasReusedPhoto(execution) ? 'Sim' : 'Não',
                         ]),
                       )
                     }
@@ -122,7 +128,7 @@ export function ReportsPage() {
                       downloadPdfTable(
                         `relatorio-diario-${date}.pdf`,
                         `Relatório Diário — ${date}`,
-                        ['Operador', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
+                        ['Operador', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível', 'Foto suspeita'],
                         dailyReport.executions.map((execution) => [
                           execution.operator?.name ?? execution.operatorId,
                           execution.vehicle?.name ?? execution.vehicleId,
@@ -130,6 +136,7 @@ export function ReportsPage() {
                           STATUS_LABEL[execution.status],
                           formatOdometer(execution),
                           formatFuel(execution),
+                          hasReusedPhoto(execution) ? 'Sim' : 'Não',
                         ]),
                       )
                     }
@@ -148,6 +155,7 @@ export function ReportsPage() {
                         <TableCell>Status</TableCell>
                         <TableCell>Odômetro</TableCell>
                         <TableCell>Combustível</TableCell>
+                        <TableCell>Foto suspeita</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -161,6 +169,9 @@ export function ReportsPage() {
                           </TableCell>
                           <TableCell>{formatOdometer(execution)}</TableCell>
                           <TableCell>{formatFuel(execution)}</TableCell>
+                          <TableCell>
+                            {hasReusedPhoto(execution) && <Chip size="small" color="warning" label="Suspeita" />}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -202,7 +213,7 @@ export function ReportsPage() {
                 onClick={() =>
                   downloadCsv(
                     `relatorio-operador-${operatorReport.operator.name}.csv`,
-                    ['Data', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
+                    ['Data', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível', 'Foto suspeita'],
                     operatorReport.executions.map((execution) => [
                       new Date(execution.startedAt).toLocaleDateString('pt-BR'),
                       execution.vehicle?.name ?? execution.vehicleId,
@@ -210,6 +221,7 @@ export function ReportsPage() {
                       STATUS_LABEL[execution.status],
                       formatOdometer(execution),
                       formatFuel(execution),
+                      hasReusedPhoto(execution) ? 'Sim' : 'Não',
                     ]),
                   )
                 }
@@ -223,7 +235,7 @@ export function ReportsPage() {
                   downloadPdfTable(
                     `relatorio-operador-${operatorReport.operator.name}.pdf`,
                     `Relatório — ${operatorReport.operator.name}`,
-                    ['Data', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível'],
+                    ['Data', 'Veículo', 'Turno', 'Status', 'Odômetro', 'Combustível', 'Foto suspeita'],
                     operatorReport.executions.map((execution) => [
                       new Date(execution.startedAt).toLocaleDateString('pt-BR'),
                       execution.vehicle?.name ?? execution.vehicleId,
@@ -231,6 +243,7 @@ export function ReportsPage() {
                       STATUS_LABEL[execution.status],
                       formatOdometer(execution),
                       formatFuel(execution),
+                      hasReusedPhoto(execution) ? 'Sim' : 'Não',
                     ]),
                   )
                 }
@@ -253,6 +266,7 @@ export function ReportsPage() {
                     <TableCell>Status</TableCell>
                     <TableCell>Odômetro</TableCell>
                     <TableCell>Combustível</TableCell>
+                    <TableCell>Foto suspeita</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -266,6 +280,9 @@ export function ReportsPage() {
                       </TableCell>
                       <TableCell>{formatOdometer(execution)}</TableCell>
                       <TableCell>{formatFuel(execution)}</TableCell>
+                      <TableCell>
+                        {hasReusedPhoto(execution) && <Chip size="small" color="warning" label="Suspeita" />}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

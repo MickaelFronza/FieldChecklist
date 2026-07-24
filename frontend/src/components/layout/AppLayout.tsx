@@ -74,12 +74,17 @@ export function AppLayout() {
     const handleOperatorLate = (payload: { name: string }) => {
       setAlert({ message: `Operador ${payload.name} ainda não iniciou o checklist de hoje.`, severity: 'warning' });
     };
+    const handleDuplicatePhoto = () => {
+      setAlert({ message: 'Possível foto reaproveitada detectada em um checklist!', severity: 'warning' });
+      queryClient.invalidateQueries({ queryKey: ['executions'] });
+    };
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('execution:completed', handleExecutionCompleted);
     socket.on('execution:alert', handleExecutionAlert);
     socket.on('operator:late', handleOperatorLate);
+    socket.on('execution:duplicatePhoto', handleDuplicatePhoto);
 
     return () => {
       socket.off('connect', handleConnect);
@@ -87,6 +92,7 @@ export function AppLayout() {
       socket.off('execution:completed', handleExecutionCompleted);
       socket.off('execution:alert', handleExecutionAlert);
       socket.off('operator:late', handleOperatorLate);
+      socket.off('execution:duplicatePhoto', handleDuplicatePhoto);
     };
   }, [accessToken, queryClient]);
 

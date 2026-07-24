@@ -13,6 +13,9 @@ export interface ExecutionItemAttributes {
   justification: string | null;
   photoKey: string | null;
   photoHash: string | null;
+  // true quando o mesmo photoHash ja existe em outro item (foto reaproveitada
+  // de outro checklist em vez de uma nova tirada agora) - ver syncQueue.ts
+  photoReused: boolean;
   markedAt: Date | null;
   syncedAt: Date | null;
   createdAt: Date;
@@ -21,7 +24,15 @@ export interface ExecutionItemAttributes {
 
 export type ExecutionItemCreationAttributes = Optional<
   ExecutionItemAttributes,
-  'status' | 'justification' | 'photoKey' | 'photoHash' | 'markedAt' | 'syncedAt' | 'createdAt' | 'updatedAt'
+  | 'status'
+  | 'justification'
+  | 'photoKey'
+  | 'photoHash'
+  | 'photoReused'
+  | 'markedAt'
+  | 'syncedAt'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 export class ExecutionItem
@@ -35,6 +46,7 @@ export class ExecutionItem
   declare justification: string | null;
   declare photoKey: string | null;
   declare photoHash: string | null;
+  declare photoReused: boolean;
   declare markedAt: Date | null;
   declare syncedAt: Date | null;
   declare createdAt: Date;
@@ -79,6 +91,12 @@ ExecutionItem.init(
       type: DataTypes.STRING(64),
       allowNull: true,
       field: 'photo_hash',
+    },
+    photoReused: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'photo_reused',
     },
     markedAt: {
       type: DataTypes.DATE,

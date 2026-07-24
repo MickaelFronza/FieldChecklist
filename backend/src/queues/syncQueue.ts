@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { createQueue } from './connection';
 import { ChecklistExecution, ExecutionItem, SyncQueue as SyncQueueModel } from '../models';
 import { socketEmitter } from './emitter';
@@ -71,6 +72,7 @@ syncQueue.process(async (job) => {
   });
 
   let hasNonConformance = false;
+  let hasReusedPhoto = false;
 
   for (const item of items) {
     // device-wins para markedAt: so e definido na criacao, nunca reescrito
@@ -88,10 +90,25 @@ syncQueue.process(async (job) => {
       },
     });
 
+    const photoHash = item.photoHash ?? itemRecord.photoHash;
+
+    // foto reaproveitada: mesmo hash ja usado em OUTRO item, de qualquer
+    // execucao/veiculo - indica que o operador reenviou uma foto antiga em
+    // vez de tirar uma nova (fraude comum em inspecao de frota)
+    let photoReused = itemRecord.photoReused;
+    if (photoHash) {
+      const duplicate = await ExecutionItem.findOne({
+        where: { photoHash, id: { [Op.ne]: item.id } },
+      });
+      photoReused = Boolean(duplicate);
+    }
+    if (photoReused) hasReusedPhoto = true;
+
     await itemRecord.update({
       status: item.status,
       justification: item.justification ?? itemRecord.justification,
-      photoHash: item.photoHash ?? itemRecord.photoHash,
+      photoHash,
+      photoReused,
       syncedAt: new Date(),
     });
 
@@ -106,5 +123,8 @@ syncQueue.process(async (job) => {
 
   if (hasNonConformance) {
     socketEmitter.to(MANAGERS_ROOM).emit('execution:alert', { executionId: execution.id });
+  }
+  if (hasReusedPhoto) {
+    socketEmitter.to(MANAGERS_ROOM).emit('execution:duplicatePhoto', { executionId: execution.id });
   }
 });
