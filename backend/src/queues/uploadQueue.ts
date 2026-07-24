@@ -20,3 +20,10 @@ uploadQueue.process(async (job) => {
 
   await ExecutionItem.update({ photoKey: key, photoHash }, { where: { id: executionItemId } });
 });
+
+// sem isso, uma falha aqui (bucket inexistente, MinIO fora do ar, etc.) fica
+// completamente muda - o Bull so marca o job como failed no Redis, sem
+// nenhum log ou alerta visivel pra quem esta operando o servidor
+uploadQueue.on('failed', (job, err) => {
+  console.error(`Falha ao enviar foto do item ${job.data.executionItemId}:`, err);
+});

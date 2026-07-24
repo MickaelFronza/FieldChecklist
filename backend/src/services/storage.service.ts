@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env';
 
@@ -27,6 +27,19 @@ const s3PublicClient = new S3Client({
   forcePathStyle: env.s3.forcePathStyle,
   credentials: s3Credentials,
 });
+
+// MinIO (assim como o S3 de verdade) exige que o bucket ja exista antes de
+// aceitar qualquer PutObject - sem isso, todo upload de foto num MinIO
+// recem-criado (cada cliente novo do install-client.sh) falha com
+// "NoSuchBucket". Chamado no boot do backend e do worker; idempotente (o
+// HeadBucket so cria se realmente nao existir).
+export async function ensureBucketExists(): Promise<void> {
+  try {
+    await s3Client.send(new HeadBucketCommand({ Bucket: env.s3.bucket }));
+  } catch {
+    await s3Client.send(new CreateBucketCommand({ Bucket: env.s3.bucket }));
+  }
+}
 
 export async function uploadPhoto(key: string, body: Buffer, contentType: string): Promise<void> {
   await s3Client.send(

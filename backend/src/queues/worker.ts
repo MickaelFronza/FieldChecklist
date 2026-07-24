@@ -4,11 +4,13 @@ import './syncQueue';
 import './uploadQueue';
 import './notificationQueue';
 import { scheduleDailyAlertJob } from './dailyAlertQueue';
+import { ensureBucketExists } from '../services/storage.service';
 
 async function start(): Promise<void> {
   await sequelize.authenticate();
   console.log('Worker conectado ao banco de dados');
 
+  await ensureBucketExists();
   await scheduleDailyAlertJob();
 
   console.log('Worker pronto: processando filas sync-checklist, upload-photos, notifications, daily-alerts');

@@ -4,10 +4,13 @@ import { env } from './config/env';
 import { sequelize } from './config/database';
 import './models';
 import { createSocketServer } from './sockets';
+import { ensureBucketExists } from './services/storage.service';
 
 async function start(): Promise<void> {
   await sequelize.authenticate();
   console.log('Conectado ao banco de dados');
+
+  await ensureBucketExists();
 
   const app = createApp();
   const httpServer = createServer(app);
