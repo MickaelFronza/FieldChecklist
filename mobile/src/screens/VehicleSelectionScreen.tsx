@@ -238,6 +238,11 @@ export function VehicleSelectionScreen({ navigation }: Props) {
       const items = await getExecutionItems(newExecution.id);
       startChecklist({ execution: newExecution, template, vehicle, items });
       setStartModal(null);
+      // espera o Modal nativo terminar de fechar antes de navegar pra tela
+      // que abre a camera na sequencia - fechar o Modal e abrir a camera no
+      // mesmo instante (sem esperar a janela nativa do Modal desmontar)
+      // travava o app no Android na primeira foto do checklist
+      await new Promise((resolve) => setTimeout(resolve, 300));
       navigation.replace('Checklist');
     } finally {
       setStartingVehicleId(null);

@@ -4,6 +4,7 @@ import {
   type ExecutionItemRow,
   type ExecutionRow,
   deleteExecutionAndItems,
+  getExecutionById,
   getExecutionItems,
   getItemsWithUnsyncedPhotos,
   listPendingSyncExecutions,
@@ -16,12 +17,19 @@ interface SyncBatchResponse {
   status: string;
 }
 
-async function syncOneExecution(execution: ExecutionRow): Promise<void> {
-  const items = await getExecutionItems(execution.id);
+// cria/atualiza a execucao e os itens dela no servidor (POST /sync/batch) e
+// espera confirmar - SEM isso, o worker de upload de foto tenta atualizar um
+// ExecutionItem que ainda nao existe no banco do servidor, "atualiza 0
+// linhas" silenciosamente, e a foto fica orfa no MinIO pra sempre (upload deu
+// certo, mas nenhum registro aponta pra ela). Usado tanto no envio final
+// quanto antes de QUALQUER upload de foto progressivo, ja que uma foto pode
+// ser tirada muito antes do checklist terminar.
+async function registerExecutionShell(executionId: string): Promise<boolean> {
+  const execution = await getExecutionById(executionId);
+  if (!execution) return false;
+  const items = await getExecutionItems(executionId);
 
-  await markExecutionSyncStatus(execution.id, 'syncing');
-
-  const { data } = await apiClient.post<SyncBatchResponse>('/sync/batch', {
+  await apiClient.post<SyncBatchResponse>('/sync/batch', {
     deviceId: execution.device_id,
     appVersion: execution.app_version,
     execution: {
@@ -48,7 +56,22 @@ async function syncOneExecution(execution: ExecutionRow): Promise<void> {
     })),
   });
 
-  await markExecutionSyncStatus(execution.id, 'syncing', data.syncQueueId);
+  return waitForSyncDone(execution.id);
+}
+
+async function syncOneExecution(execution: ExecutionRow): Promise<void> {
+  const items = await getExecutionItems(execution.id);
+
+  await markExecutionSyncStatus(execution.id, 'syncing');
+
+  const registered = await registerExecutionShell(execution.id);
+  if (!registered) {
+    // volta pra 'pending': o proximo ciclo do sync loop reenvia o mesmo
+    // payload, que o backend trata como idempotente (mesmo execution_id +
+    // mesmo hash nao duplica)
+    await markExecutionSyncStatus(execution.id, 'pending');
+    return;
+  }
 
   // a maioria das fotos ja deve ter subido em segundo plano durante o
   // checklist (ver uploadPhotoInBackground) - isso aqui e' so uma rede de
@@ -58,16 +81,8 @@ async function syncOneExecution(execution: ExecutionRow): Promise<void> {
     await uploadPhotos(itemsWithUnsyncedPhotos);
   }
 
-  const done = await waitForSyncDone(execution.id);
-  if (done) {
-    await cleanupLocalPhotos(items);
-    await deleteExecutionAndItems(execution.id);
-  } else {
-    // volta pra 'pending': o proximo ciclo do sync loop reenvia o mesmo
-    // payload, que o backend trata como idempotente (mesmo execution_id +
-    // mesmo hash nao duplica)
-    await markExecutionSyncStatus(execution.id, 'pending');
-  }
+  await cleanupLocalPhotos(items);
+  await deleteExecutionAndItems(execution.id);
 }
 
 async function uploadPhotos(items: ExecutionItemRow[]): Promise<void> {
@@ -103,6 +118,11 @@ async function uploadPhotos(items: ExecutionItemRow[]): Promise<void> {
 // (ver backgroundSync.ts) e o proprio envio final pegam o que sobrar.
 export async function uploadPhotoInBackground(item: ExecutionItemRow): Promise<void> {
   try {
+    // garante que o ExecutionItem ja existe no servidor antes de tentar subir
+    // a foto dele (ver registerExecutionShell) - sem isso a foto sobe pro
+    // MinIO mas fica sem nenhum registro apontando pra ela
+    const registered = await registerExecutionShell(item.execution_id);
+    if (!registered) return;
     await uploadPhotos([item]);
   } catch {
     // sem problema - fica pendente ate o proximo retry
@@ -115,10 +135,22 @@ export async function uploadPhotoInBackground(item: ExecutionItemRow): Promise<v
 export async function syncPendingPhotos(): Promise<void> {
   const items = await getItemsWithUnsyncedPhotos();
   if (items.length === 0) return;
-  try {
-    await uploadPhotos(items);
-  } catch {
-    // tenta de novo no proximo ciclo
+
+  const itemsByExecution = new Map<string, ExecutionItemRow[]>();
+  for (const item of items) {
+    const list = itemsByExecution.get(item.execution_id) ?? [];
+    list.push(item);
+    itemsByExecution.set(item.execution_id, list);
+  }
+
+  for (const [executionId, executionItems] of itemsByExecution) {
+    try {
+      const registered = await registerExecutionShell(executionId);
+      if (!registered) continue;
+      await uploadPhotos(executionItems);
+    } catch {
+      // tenta de novo no proximo ciclo
+    }
   }
 }
 
